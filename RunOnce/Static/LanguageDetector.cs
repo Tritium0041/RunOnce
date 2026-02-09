@@ -1,10 +1,10 @@
 ﻿/*
  * 脚本语言检测器
  * 通过代码特征分析自动识别脚本语言类型，输出按置信度排序的检测结果
- * 
+ *
  * @author: WaterRun
  * @file: Static/LanguageDetector.cs
- * @date: 2026-02-05
+ * @date: 2026-02-09
  */
 
 #nullable enable
@@ -29,18 +29,11 @@ namespace RunOnce.Static;
 public readonly record struct DetectionResult(string Language, double Confidence)
 {
     /// <summary>
-    /// 判断当前结果是否达到高置信度标准。
+    /// 判断当前结果是否达到可信标准。
     /// </summary>
-    /// <param name="threshold">置信度判定范围配置。</param>
-    /// <returns>若置信度高于阈值上界则返回 true，否则返回 false。</returns>
-    public bool IsHighConfidence(ConfidenceRange threshold) => threshold.IsHighConfidence(Confidence);
-
-    /// <summary>
-    /// 判断当前结果是否低于可信标准。
-    /// </summary>
-    /// <param name="threshold">置信度判定范围配置。</param>
-    /// <returns>若置信度低于阈值下界则返回 true，否则返回 false。</returns>
-    public bool IsLowConfidence(ConfidenceRange threshold) => threshold.IsLowConfidence(Confidence);
+    /// <param name="threshold">置信度判定阈值，范围 [0.0, 1.0]。</param>
+    /// <returns>若置信度大于等于阈值则返回 true，否则返回 false。</returns>
+    public bool IsConfident(double threshold) => Confidence >= threshold;
 }
 
 /// <summary>
@@ -196,9 +189,7 @@ public static class LanguageDetector
     /// 包含所有支持语言及其置信度的检测结果列表，按置信度从高到低排序。
     /// 若输入为 null 或空白字符串，返回所有语言置信度为 0 的结果列表。
     /// </returns>
-    /// <remarks>
-    /// 检测分三层执行：确定性标记（命中即返回高分）、强特征组合（累积计分）、弱特征兜底（辅助参考）。
-    /// </remarks>
+    /// <remarks>检测分三层执行：确定性标记（命中即返回高分）、强特征组合（累积计分）、弱特征兜底（辅助参考）。</remarks>
     public static IReadOnlyList<DetectionResult> Detect(string? code)
     {
         if (string.IsNullOrWhiteSpace(code))
@@ -227,9 +218,7 @@ public static class LanguageDetector
     /// 获取代码最可能的语言检测结果。
     /// </summary>
     /// <param name="code">待检测的代码字符串，允许为 null 或空字符串。</param>
-    /// <returns>
-    /// 置信度最高的检测结果；若输入为 null 或空白字符串，返回首个支持语言且置信度为 0 的结果。
-    /// </returns>
+    /// <returns>置信度最高的检测结果；若输入为 null 或空白字符串，返回首个支持语言且置信度为 0 的结果。</returns>
     public static DetectionResult DetectTop(string? code)
     {
         return Detect(code).First();
@@ -265,15 +254,10 @@ public static class LanguageDetector
             return shebangLanguage;
         }
 
-        foreach (KeyValuePair<string, Func<string, bool>> marker in _definitiveMarkers)
-        {
-            if (marker.Value(code))
-            {
-                return marker.Key;
-            }
-        }
-
-        return null;
+        return _definitiveMarkers
+            .Where(marker => marker.Value(code))
+            .Select(marker => marker.Key)
+            .FirstOrDefault();
     }
 
     /// <summary>
@@ -287,13 +271,7 @@ public static class LanguageDetector
         string firstLine = firstLineEnd >= 0 ? code[..firstLineEnd] : code;
 
         Match match = _shebangRegex.Match(firstLine);
-        if (!match.Success)
-        {
-            return null;
-        }
-
-        string interpreter = match.Groups[1].Value;
-        return _shebangMappings.GetValueOrDefault(interpreter);
+        return match.Success ? _shebangMappings.GetValueOrDefault(match.Groups[1].Value) : null;
     }
 
     /// <summary>
@@ -303,15 +281,13 @@ public static class LanguageDetector
     /// <returns>命中语言置信度为 0.98，其余语言置信度为 0 的结果列表。</returns>
     private static IReadOnlyList<DetectionResult> BuildDefinitiveResults(string language)
     {
-        List<DetectionResult> results = Config.SupportedLanguages
+        return Config.SupportedLanguages
             .Select(lang => new DetectionResult(
                 lang,
                 string.Equals(lang, language, StringComparison.OrdinalIgnoreCase) ? DefinitiveScore : 0.0))
             .OrderByDescending(r => r.Confidence)
             .ThenBy(r => r.Language)
             .ToList();
-
-        return results;
     }
 
     /// <summary>
@@ -321,18 +297,10 @@ public static class LanguageDetector
     /// <returns>语言标识符到置信度分数的映射字典。</returns>
     private static Dictionary<string, double> CalculateFeatureScores(string code)
     {
-        Dictionary<string, double> scores = new(StringComparer.OrdinalIgnoreCase);
-
-        foreach (string language in Config.SupportedLanguages)
-        {
-            double strongScore = CalculateStrongFeatureScore(code, language);
-            double weakScore = CalculateWeakFeatureScore(code, language);
-            double totalScore = Math.Min(strongScore + weakScore, 1.0);
-
-            scores[language] = totalScore;
-        }
-
-        return scores;
+        return Config.SupportedLanguages.ToDictionary(
+            lang => lang,
+            lang => Math.Min(CalculateStrongFeatureScore(code, lang) + CalculateWeakFeatureScore(code, lang), 1.0),
+            StringComparer.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -356,7 +324,7 @@ public static class LanguageDetector
             3 => StrongFeatureBaseScore * 3 + 0.1,
             2 => StrongFeatureBaseScore * 2 + 0.05,
             1 => StrongFeatureBaseScore,
-            _ => 0.0
+            _ => 0.0,
         };
 
         return Math.Min(scaledScore, StrongFeatureMaxScore);
@@ -375,10 +343,7 @@ public static class LanguageDetector
             return 0.0;
         }
 
-        int matchCount = keywords.Count(keyword =>
-            code.Contains(keyword, StringComparison.OrdinalIgnoreCase));
-
-        double rawScore = matchCount * WeakFeatureScore;
-        return Math.Min(rawScore, WeakFeatureMaxScore);
+        int matchCount = keywords.Count(keyword => code.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+        return Math.Min(matchCount * WeakFeatureScore, WeakFeatureMaxScore);
     }
 }

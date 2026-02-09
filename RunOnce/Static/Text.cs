@@ -1,10 +1,10 @@
 ﻿/*
  * 国际化文本管理
  * 提供应用程序界面文本的多语言支持，以中文为基础语言，支持英文翻译
- * 
+ *
  * @author: WaterRun
  * @file: Static/Text.cs
- * @date: 2026-02-05
+ * @date: 2026-02-09
  */
 
 #nullable enable
@@ -46,8 +46,7 @@ public static class Text
 
         // 语言选择器模式
         ["始终显示"] = "Always Show",
-        ["高可信时隐藏"] = "Hide When High Confidence",
-        ["仅无可信时显示"] = "Show Only When No Confidence",
+        ["自动隐藏"] = "Auto Hide",
 
         // 终端类型
         ["Windows 终端"] = "Windows Terminal",
@@ -90,9 +89,7 @@ public static class Text
 
         // 高级设置对话框
         ["临时文件名前缀"] = "Temporary File Prefix",
-        ["置信度范围"] = "Confidence Range",
-        ["下界"] = "Lower Bound",
-        ["上界"] = "Upper Bound",
+        ["置信度阈值"] = "Confidence Threshold",
         ["语言执行命令"] = "Language Execution Commands",
         ["重置为默认"] = "Reset to Default",
         ["保存"] = "Save",
@@ -103,15 +100,13 @@ public static class Text
         ["重置"] = "Reset",
 
         // Config.cs 中的错误消息
-        ["下界必须在 [0.0, 1.0] 范围内。"] = "Lower bound must be in the range [0.0, 1.0].",
-        ["上界必须在 [0.0, 1.0] 范围内。"] = "Upper bound must be in the range [0.0, 1.0].",
-        ["下界不能大于上界。"] = "Lower bound cannot be greater than upper bound.",
+        ["置信度阈值必须在 [0.0, 1.0] 范围内。"] = "Confidence threshold must be in the range [0.0, 1.0].",
         ["临时文件名前缀不能为空白字符串。"] = "Temporary file prefix cannot be empty or whitespace.",
         ["语言标识符不能为空白字符串。"] = "Language identifier cannot be empty or whitespace.",
         ["不支持的语言标识符: {0}。"] = "Unsupported language identifier: {0}.",
         ["执行指令不能为空白字符串。"] = "Execution command cannot be empty or whitespace.",
 
-        // Detector.cs 中的错误消息
+        // LanguageDetector.cs 中的错误消息
         ["结果数量必须大于 0。"] = "Result count must be greater than 0.",
 
         // Exec.cs 中的错误消息
@@ -133,7 +128,7 @@ public static class Text
     /// <exception cref="ArgumentNullException">当 chinese 为 null 时抛出。</exception>
     /// <remarks>
     /// 语言解析优先级：用户显式设置 &gt; 系统语言检测。
-    /// 当设置为 FollowSystem 时，通过 CultureInfo.CurrentUICulture 判断是否为中文环境。
+    /// 当设置为 FollowSystem 时，通过 <see cref="CultureInfo.CurrentUICulture"/> 判断是否为中文环境。
     /// </remarks>
     public static string Localize(string chinese)
     {
@@ -150,7 +145,7 @@ public static class Text
     /// <summary>
     /// 获取指定中文文本的本地化翻译，支持格式化参数。
     /// </summary>
-    /// <param name="chinese">中文原文模板，支持 string.Format 占位符，不允许为 null。</param>
+    /// <param name="chinese">中文原文模板，支持 <see cref="string.Format(string,object[])"/> 占位符，不允许为 null。</param>
     /// <param name="args">格式化参数数组，不允许为 null。</param>
     /// <returns>
     /// 根据当前语言设置返回格式化后的翻译文本；
@@ -171,18 +166,12 @@ public static class Text
     /// 判断当前是否应使用中文显示。
     /// </summary>
     /// <returns>若应使用中文则返回 true，否则返回 false。</returns>
-    private static bool ShouldUseChinese()
+    private static bool ShouldUseChinese() => Config.Language switch
     {
-        DisplayLanguage language = Config.Language;
-
-        return language switch
-        {
-            DisplayLanguage.Chinese => true,
-            DisplayLanguage.English => false,
-            DisplayLanguage.FollowSystem => IsSystemChinese(),
-            _ => IsSystemChinese()
-        };
-    }
+        DisplayLanguage.Chinese => true,
+        DisplayLanguage.English => false,
+        _ => IsSystemChinese(),
+    };
 
     /// <summary>
     /// 判断系统当前 UI 文化是否为中文。
@@ -190,29 +179,20 @@ public static class Text
     /// <returns>若系统 UI 文化为中文（zh 开头）则返回 true，否则返回 false。</returns>
     private static bool IsSystemChinese()
     {
-        string cultureName = CultureInfo.CurrentUICulture.Name;
-        return cultureName.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
+        return CultureInfo.CurrentUICulture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
     /// 获取当前实际使用的显示语言。
     /// </summary>
-    /// <returns>
-    /// 返回实际生效的语言：当设置为 FollowSystem 时返回系统检测结果，否则返回用户设置值。
-    /// </returns>
-    /// <remarks>
-    /// 此方法用于需要明确知道当前使用何种语言的场景，例如日志记录或调试。
-    /// </remarks>
+    /// <returns>返回实际生效的语言：当设置为 FollowSystem 时返回系统检测结果，否则返回用户设置值。</returns>
+    /// <remarks>此方法用于需要明确知道当前使用何种语言的场景，例如日志记录或调试。</remarks>
     public static DisplayLanguage GetEffectiveLanguage()
     {
         DisplayLanguage language = Config.Language;
-
-        if (language == DisplayLanguage.FollowSystem)
-        {
-            return IsSystemChinese() ? DisplayLanguage.Chinese : DisplayLanguage.English;
-        }
-
-        return language;
+        return language == DisplayLanguage.FollowSystem
+            ? (IsSystemChinese() ? DisplayLanguage.Chinese : DisplayLanguage.English)
+            : language;
     }
 
     /// <summary>
@@ -221,9 +201,7 @@ public static class Text
     /// <param name="chinese">待检查的中文原文，不允许为 null。</param>
     /// <returns>若存在英文翻译则返回 true，否则返回 false。</returns>
     /// <exception cref="ArgumentNullException">当 chinese 为 null 时抛出。</exception>
-    /// <remarks>
-    /// 此方法用于开发期间检查翻译覆盖率，生产环境中不建议频繁调用。
-    /// </remarks>
+    /// <remarks>此方法用于开发期间检查翻译覆盖率，生产环境中不建议频繁调用。</remarks>
     public static bool HasTranslation(string chinese)
     {
         ArgumentNullException.ThrowIfNull(chinese);

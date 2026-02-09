@@ -8,29 +8,104 @@
     mc:Ignorable="d"
     NavigationCacheMode="Disabled">
 
-    <Grid>
-        <ScrollViewer 
+    <Grid x:Name="RootLayout">
+        <VisualStateManager.VisualStateGroups>
+            <VisualStateGroup>
+                <VisualState x:Name="NarrowState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="0"/>
+                    </VisualState.StateTriggers>
+                </VisualState>
+                <VisualState x:Name="WideState">
+                    <VisualState.StateTriggers>
+                        <AdaptiveTrigger MinWindowWidth="720"/>
+                    </VisualState.StateTriggers>
+                    <VisualState.Setters>
+                        <Setter Target="LeftColumn.Width" Value="280"/>
+                        <Setter Target="LeftPanel.Visibility" Value="Visible"/>
+                        <Setter Target="NarrowAboutSection.Visibility" Value="Collapsed"/>
+                    </VisualState.Setters>
+                </VisualState>
+            </VisualStateGroup>
+        </VisualStateManager.VisualStateGroups>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition x:Name="LeftColumn" Width="0"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- 宽屏左侧品牌面板 -->
+        <Grid
+            x:Name="LeftPanel"
+            Grid.Column="0"
+            Visibility="Collapsed"
+            Padding="36,24,24,24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Spacing="4" VerticalAlignment="Top">
+                <Image
+                    Source="ms-appx:///Assets/logo.png"
+                    Width="128"
+                    Stretch="Uniform"
+                    HorizontalAlignment="Left"
+                    Margin="0,0,0,16"/>
+                <TextBlock
+                    Text="{x:Bind ViewModel.AppName, Mode=OneWay}"
+                    Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                <TextBlock
+                    Text="{x:Bind ViewModel.VersionAndAuthor}"
+                    Style="{ThemeResource CaptionTextBlockStyle}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <TextBlock
+                    x:Name="WideBuildTimeText"
+                    Style="{ThemeResource CaptionTextBlockStyle}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Margin="0,0,0,12"/>
+                <HyperlinkButton
+                    Content="GitHub"
+                    Padding="0"
+                    Click="GitHubLink_Click"/>
+                <HyperlinkButton
+                    x:Name="WideStoreLink"
+                    Padding="0"
+                    Click="StoreLink_Click"/>
+            </StackPanel>
+
+            <HyperlinkButton
+                x:Name="WideResetLink"
+                Grid.Row="1"
+                Padding="0"
+                HorizontalAlignment="Left"
+                Click="ResetAllLink_Click"/>
+        </Grid>
+
+        <!-- 右侧设置内容区域 -->
+        <ScrollViewer
+            Grid.Column="1"
             VerticalScrollBarVisibility="Auto"
             Padding="36,24,36,24">
-            <StackPanel 
-                Spacing="2" 
+            <StackPanel
+                Spacing="2"
                 MaxWidth="600"
                 HorizontalAlignment="Stretch">
 
                 <!-- 页面标题 -->
-                <TextBlock 
+                <TextBlock
                     x:Name="PageTitle"
                     Style="{ThemeResource TitleTextBlockStyle}"
                     Margin="0,0,0,20"/>
 
-                <!-- 基本设置区域 -->
-                <TextBlock 
+                <!-- ====== 基本设置 ====== -->
+                <TextBlock
                     x:Name="BasicSectionHeader"
                     Style="{ThemeResource BodyStrongTextBlockStyle}"
                     Margin="0,0,0,4"/>
 
-                <!-- 外观设置项 -->
-                <Grid 
+                <!-- 外观 -->
+                <Grid
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
@@ -45,16 +120,16 @@
                         <TextBlock x:Name="ThemeLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
                         <TextBlock x:Name="ThemeDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
-                    <ComboBox 
-                        x:Name="ThemeComboBox"
+                    <ComboBox
                         Grid.Column="1"
                         MinWidth="150"
                         VerticalAlignment="Center"
-                        SelectionChanged="ThemeComboBox_SelectionChanged"/>
+                        ItemsSource="{x:Bind ViewModel.ThemeOptions, Mode=OneWay}"
+                        SelectedIndex="{x:Bind ViewModel.SelectedThemeIndex, Mode=TwoWay}"/>
                 </Grid>
 
-                <!-- 语言设置项 -->
-                <Grid 
+                <!-- 语言 -->
+                <Grid
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1,0,1,1"
@@ -69,22 +144,22 @@
                         <TextBlock x:Name="LanguageLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
                         <TextBlock x:Name="LanguageDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
-                    <ComboBox 
-                        x:Name="LanguageComboBox"
+                    <ComboBox
                         Grid.Column="1"
                         MinWidth="150"
                         VerticalAlignment="Center"
-                        SelectionChanged="LanguageComboBox_SelectionChanged"/>
+                        ItemsSource="{x:Bind ViewModel.LanguageOptions, Mode=OneWay}"
+                        SelectedIndex="{x:Bind ViewModel.SelectedLanguageIndex, Mode=TwoWay}"/>
                 </Grid>
 
-                <!-- 代码执行设置区域 -->
-                <TextBlock 
+                <!-- ====== 代码执行设置 ====== -->
+                <TextBlock
                     x:Name="ExecutionSectionHeader"
                     Style="{ThemeResource BodyStrongTextBlockStyle}"
                     Margin="0,20,0,4"/>
 
                 <!-- 执行前确认 -->
-                <Grid 
+                <Grid
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1"
@@ -99,18 +174,17 @@
                         <TextBlock x:Name="ConfirmLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
                         <TextBlock x:Name="ConfirmDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
-                    <ToggleSwitch 
-                        x:Name="ConfirmToggle"
+                    <ToggleSwitch
                         Grid.Column="1"
                         VerticalAlignment="Center"
                         OnContent=""
                         OffContent=""
                         Margin="0,0,-4,0"
-                        Toggled="ConfirmToggle_Toggled"/>
+                        IsOn="{x:Bind ViewModel.ConfirmBeforeExecution, Mode=TwoWay}"/>
                 </Grid>
 
                 <!-- 执行前语言选择框 -->
-                <Grid 
+                <Grid
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1,0,1,1"
@@ -125,16 +199,16 @@
                         <TextBlock x:Name="SelectorModeLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
                         <TextBlock x:Name="SelectorModeDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
-                    <ComboBox 
-                        x:Name="SelectorModeComboBox"
+                    <ComboBox
                         Grid.Column="1"
                         MinWidth="150"
                         VerticalAlignment="Center"
-                        SelectionChanged="SelectorModeComboBox_SelectionChanged"/>
+                        ItemsSource="{x:Bind ViewModel.SelectorModeOptions, Mode=OneWay}"
+                        SelectedIndex="{x:Bind ViewModel.SelectedSelectorModeIndex, Mode=TwoWay}"/>
                 </Grid>
 
                 <!-- 执行后自动退出 -->
-                <Grid 
+                <Grid
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1,0,1,1"
@@ -149,18 +223,17 @@
                         <TextBlock x:Name="AutoExitLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
                         <TextBlock x:Name="AutoExitDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
-                    <ToggleSwitch 
-                        x:Name="AutoExitToggle"
+                    <ToggleSwitch
                         Grid.Column="1"
                         VerticalAlignment="Center"
                         OnContent=""
                         OffContent=""
                         Margin="0,0,-4,0"
-                        Toggled="AutoExitToggle_Toggled"/>
+                        IsOn="{x:Bind ViewModel.AutoExitAfterExecution, Mode=TwoWay}"/>
                 </Grid>
 
                 <!-- 终端类型 -->
-                <Grid 
+                <Grid
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1,0,1,1"
@@ -175,16 +248,16 @@
                         <TextBlock x:Name="TerminalLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
                         <TextBlock x:Name="TerminalDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
-                    <ComboBox 
-                        x:Name="TerminalComboBox"
+                    <ComboBox
                         Grid.Column="1"
                         MinWidth="150"
                         VerticalAlignment="Center"
-                        SelectionChanged="TerminalComboBox_SelectionChanged"/>
+                        ItemsSource="{x:Bind ViewModel.TerminalOptions, Mode=OneWay}"
+                        SelectedIndex="{x:Bind ViewModel.SelectedTerminalIndex, Mode=TwoWay}"/>
                 </Grid>
 
                 <!-- 高级设置 -->
-                <Grid 
+                <Grid
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                     BorderThickness="1,0,1,1"
@@ -199,145 +272,147 @@
                         <TextBlock x:Name="AdvancedSettingsLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
                         <TextBlock x:Name="AdvancedSettingsDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
-                    <Button 
+                    <Button
                         x:Name="AdvancedSettingsButton"
                         Grid.Column="1"
                         VerticalAlignment="Center"
-                        Click="AdvancedSettingsLink_Click"/>
+                        Click="AdvancedSettingsButton_Click"/>
                 </Grid>
 
-                <!-- 关于此程序区域 -->
-                <TextBlock 
-                    x:Name="AboutSectionHeader"
-                    Style="{ThemeResource BodyStrongTextBlockStyle}"
-                    Margin="0,20,0,4"/>
+                <!-- ====== 窄屏关于区域 ====== -->
+                <StackPanel x:Name="NarrowAboutSection" Spacing="2">
 
-                <!-- 软件名 -->
-                <Grid 
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1"
-                    CornerRadius="4,4,0,0"
-                    Padding="16,12,16,12"
-                    MinHeight="48">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="AppNameLabel" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="AppNameValue" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                </Grid>
+                    <TextBlock
+                        x:Name="NarrowAboutSectionHeader"
+                        Style="{ThemeResource BodyStrongTextBlockStyle}"
+                        Margin="0,20,0,4"/>
 
-                <!-- 版本 -->
-                <Grid 
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1,0,1,1"
-                    CornerRadius="0"
-                    Padding="16,12,16,12"
-                    MinHeight="48">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="VersionLabel" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="VersionValue" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                </Grid>
+                    <!-- 软件名 -->
+                    <Grid
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1"
+                        CornerRadius="4,4,0,0"
+                        Padding="16,12,16,12"
+                        MinHeight="48">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="NarrowAppNameLabel" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind ViewModel.AppName, Mode=OneWay}" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                    </Grid>
 
-                <!-- 编译于 -->
-                <Grid 
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1,0,1,1"
-                    CornerRadius="0"
-                    Padding="16,12,16,12"
-                    MinHeight="48">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="BuildTimeLabel" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="BuildTimeValue" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                </Grid>
+                    <!-- 版本 -->
+                    <Grid
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1,0,1,1"
+                        CornerRadius="0"
+                        Padding="16,12,16,12"
+                        MinHeight="48">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="NarrowVersionLabel" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind ViewModel.Version}" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                    </Grid>
 
-                <!-- 作者 -->
-                <Grid 
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1,0,1,1"
-                    CornerRadius="0"
-                    Padding="16,12,16,12"
-                    MinHeight="48">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="AuthorLabel" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
-                    <TextBlock x:Name="AuthorValue" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
-                </Grid>
+                    <!-- 编译于 -->
+                    <Grid
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1,0,1,1"
+                        CornerRadius="0"
+                        Padding="16,12,16,12"
+                        MinHeight="48">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="NarrowBuildTimeLabel" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind ViewModel.BuildTimeText}" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                    </Grid>
 
-                <!-- GitHub 链接 -->
-                <Grid 
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1,0,1,1"
-                    CornerRadius="0"
-                    Padding="16,12,16,12"
-                    MinHeight="48">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Text="GitHub" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
-                    <HyperlinkButton 
-                        x:Name="GitHubLink"
-                        Grid.Column="1"
-                        Padding="0"
-                        VerticalAlignment="Center"
-                        Click="GitHubLink_Click"/>
-                </Grid>
+                    <!-- 作者 -->
+                    <Grid
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1,0,1,1"
+                        CornerRadius="0"
+                        Padding="16,12,16,12"
+                        MinHeight="48">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="NarrowAuthorLabel" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind ViewModel.Author}" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                    </Grid>
 
-                <!-- 微软商店链接 -->
-                <Grid 
-                    x:Name="StoreRow"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1,0,1,1"
-                    CornerRadius="0"
-                    Padding="16,12,16,12"
-                    MinHeight="48">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock x:Name="StoreLabel" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
-                    <HyperlinkButton 
-                        x:Name="StoreLink"
-                        Grid.Column="1"
-                        Padding="0"
-                        VerticalAlignment="Center"
-                        Click="StoreLink_Click"/>
-                </Grid>
+                    <!-- GitHub -->
+                    <Grid
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1,0,1,1"
+                        CornerRadius="0"
+                        Padding="16,12,16,12"
+                        MinHeight="48">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="GitHub" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
+                        <HyperlinkButton
+                            x:Name="NarrowGitHubLink"
+                            Grid.Column="1"
+                            Padding="0"
+                            VerticalAlignment="Center"
+                            Click="GitHubLink_Click"/>
+                    </Grid>
 
-                <!-- 重置所有设置 -->
-                <Grid 
-                    x:Name="ResetRow"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1,0,1,1"
-                    CornerRadius="0,0,4,4"
-                    Padding="16,12,16,12"
-                    MinHeight="44">
-                    <HyperlinkButton 
-                        x:Name="ResetAllLink"
-                        Padding="0"
-                        VerticalAlignment="Center"
-                        HorizontalAlignment="Right"
-                        Click="ResetAllLink_Click"/>
-                </Grid>
+                    <!-- 微软商店 -->
+                    <Grid
+                        x:Name="NarrowStoreRow"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1,0,1,1"
+                        CornerRadius="0"
+                        Padding="16,12,16,12"
+                        MinHeight="48">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="NarrowStoreLabel" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
+                        <HyperlinkButton
+                            x:Name="NarrowStoreLink"
+                            Grid.Column="1"
+                            Padding="0"
+                            VerticalAlignment="Center"
+                            Click="StoreLink_Click"/>
+                    </Grid>
+
+                    <!-- 重置所有设置 -->
+                    <Grid
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                        BorderThickness="1,0,1,1"
+                        CornerRadius="0,0,4,4"
+                        Padding="16,12,16,12"
+                        MinHeight="44">
+                        <HyperlinkButton
+                            x:Name="NarrowResetLink"
+                            Padding="0"
+                            VerticalAlignment="Center"
+                            HorizontalAlignment="Right"
+                            Click="ResetAllLink_Click"/>
+                    </Grid>
+
+                </StackPanel>
 
             </StackPanel>
         </ScrollViewer>
     </Grid>
 </Page>
-    

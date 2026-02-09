@@ -1,10 +1,10 @@
 ﻿/*
  * 应用程序配置管理
  * 提供用户设置项与硬编码常量的统一访问入口，支持持久化存储
- * 
+ *
  * @author: WaterRun
  * @file: Static/Config.cs
- * @date: 2026-02-05
+ * @date: 2026-02-09
  */
 
 #nullable enable
@@ -55,11 +55,8 @@ public enum LanguageSelectorMode
     /// <summary>始终显示语言选择框。</summary>
     AlwaysShow,
 
-    /// <summary>当存在高可信度语言识别结果时不显示（默认行为）。</summary>
-    HideWhenHighConfidence,
-
-    /// <summary>仅当无法识别任何可信语言时显示。</summary>
-    ShowOnlyWhenNoConfidence,
+    /// <summary>当语言识别可信时自动隐藏选择框（默认行为）。</summary>
+    AutoHide,
 }
 
 /// <summary>
@@ -72,115 +69,6 @@ public enum TerminalType
 
     /// <summary>传统命令提示符（cmd.exe）。</summary>
     Cmd,
-}
-
-/// <summary>
-/// 置信度范围结构体，定义语言识别置信度的判定区间。
-/// </summary>
-/// <remarks>
-/// 不变量：LowerBound 必须小于等于 UpperBound；两者均在 [0.0, 1.0] 范围内。
-/// 线程安全：作为不可变值类型，天然线程安全。
-/// 副作用：无。
-/// </remarks>
-public readonly record struct ConfidenceRange
-{
-    /// <summary>
-    /// 置信度下界的默认值。
-    /// </summary>
-    public const double DefaultLowerBound = 0.7;
-
-    /// <summary>
-    /// 置信度上界的默认值。
-    /// </summary>
-    public const double DefaultUpperBound = 0.95;
-
-    /// <summary>
-    /// 置信度的最小允许值。
-    /// </summary>
-    public const double MinValue = 0.0;
-
-    /// <summary>
-    /// 置信度的最大允许值。
-    /// </summary>
-    public const double MaxValue = 1.0;
-
-    /// <summary>
-    /// 获取置信度判定的下界阈值。
-    /// </summary>
-    /// <value>
-    /// 范围 [0.0, 1.0]，低于此值判定为无置信度。
-    /// </value>
-    public double LowerBound { get; }
-
-    /// <summary>
-    /// 获取置信度判定的上界阈值。
-    /// </summary>
-    /// <value>
-    /// 范围 [0.0, 1.0]，高于此值判定为高置信度。
-    /// </value>
-    public double UpperBound { get; }
-
-    /// <summary>
-    /// 使用指定的上下界创建置信度范围实例。
-    /// </summary>
-    /// <param name="lowerBound">下界阈值，范围 [0.0, 1.0]，必须小于等于 upperBound。</param>
-    /// <param name="upperBound">上界阈值，范围 [0.0, 1.0]，必须大于等于 lowerBound。</param>
-    /// <exception cref="ArgumentOutOfRangeException">当 lowerBound 或 upperBound 超出 [0.0, 1.0] 范围时抛出。</exception>
-    /// <exception cref="ArgumentException">当 lowerBound 大于 upperBound 时抛出。</exception>
-    public ConfidenceRange(double lowerBound, double upperBound)
-    {
-        if (lowerBound < MinValue || lowerBound > MaxValue)
-        {
-            throw new ArgumentOutOfRangeException(nameof(lowerBound), lowerBound, Text.Localize("下界必须在 [0.0, 1.0] 范围内。"));
-        }
-        if (upperBound < MinValue || upperBound > MaxValue)
-        {
-            throw new ArgumentOutOfRangeException(nameof(upperBound), upperBound, Text.Localize("上界必须在 [0.0, 1.0] 范围内。"));
-        }
-        if (lowerBound > upperBound)
-        {
-            throw new ArgumentException(Text.Localize("下界不能大于上界。"), nameof(lowerBound));
-        }
-
-        LowerBound = lowerBound;
-        UpperBound = upperBound;
-    }
-
-    /// <summary>
-    /// 获取使用默认阈值的置信度范围实例。
-    /// </summary>
-    /// <value>
-    /// 下界为 0.7，上界为 0.95 的默认置信度范围。
-    /// </value>
-    public static ConfidenceRange Default => new(DefaultLowerBound, DefaultUpperBound);
-
-    /// <summary>
-    /// 判断给定的置信度值是否属于低置信度（无置信）。
-    /// </summary>
-    /// <param name="confidence">待判定的置信度值，范围 [0.0, 1.0]。</param>
-    /// <returns>若置信度低于下界则返回 true，否则返回 false。</returns>
-    public bool IsLowConfidence(double confidence) => confidence < LowerBound;
-
-    /// <summary>
-    /// 判断给定的置信度值是否属于高置信度。
-    /// </summary>
-    /// <param name="confidence">待判定的置信度值，范围 [0.0, 1.0]。</param>
-    /// <returns>若置信度高于上界则返回 true，否则返回 false。</returns>
-    public bool IsHighConfidence(double confidence) => confidence > UpperBound;
-
-    /// <summary>
-    /// 判断给定的置信度值是否属于中间范围（既非低也非高）。
-    /// </summary>
-    /// <param name="confidence">待判定的置信度值，范围 [0.0, 1.0]。</param>
-    /// <returns>若置信度在 [LowerBound, UpperBound] 范围内则返回 true，否则返回 false。</returns>
-    public bool IsMiddleConfidence(double confidence) => confidence >= LowerBound && confidence <= UpperBound;
-
-    /// <summary>
-    /// 对给定的置信度值进行分类。
-    /// </summary>
-    /// <param name="confidence">待分类的置信度值，范围 [0.0, 1.0]。</param>
-    /// <returns>返回 -1 表示低置信度，0 表示中间范围，1 表示高置信度。</returns>
-    public int Classify(double confidence) => confidence < LowerBound ? -1 : (confidence > UpperBound ? 1 : 0);
 }
 
 /// <summary>
@@ -238,8 +126,8 @@ public static class Config
     public const string Author = "WaterRun";
 
     /// <summary>项目 GitHub 仓库地址。</summary>
-    /// <value>指向作者的 GitHub 主页。</value>
-    public const string GitHubUrl = "https://github.com/Water-Run";
+    /// <value>指向作者的 GitHub 仓库。</value>
+    public const string GitHubUrl = "https://github.com/Water-Run/RunOnce";
 
     /// <summary>微软商店应用链接。</summary>
     /// <value>暂未发布，当前为空字符串。</value>
@@ -287,11 +175,8 @@ public static class Config
     /// <summary>执行前确认开关设置项的存储键名。</summary>
     private const string KeyConfirmBeforeExecution = "ConfirmBeforeExecution";
 
-    /// <summary>置信度范围下界设置项的存储键名。</summary>
-    private const string KeyConfidenceLowerBound = "ConfidenceLowerBound";
-
-    /// <summary>置信度范围上界设置项的存储键名。</summary>
-    private const string KeyConfidenceUpperBound = "ConfidenceUpperBound";
+    /// <summary>置信度阈值设置项的存储键名。</summary>
+    private const string KeyConfidenceThreshold = "ConfidenceThreshold";
 
     /// <summary>执行后自动退出开关设置项的存储键名。</summary>
     private const string KeyAutoExitAfterExecution = "AutoExitAfterExecution";
@@ -305,6 +190,9 @@ public static class Config
 
     /// <summary>临时文件名前缀的默认值。</summary>
     private const string DefaultTempFilePrefix = "__RunOnceTMP__";
+
+    /// <summary>置信度阈值的默认值。</summary>
+    public const double DefaultConfidenceThreshold = 0.75;
 
     #endregion
 
@@ -393,6 +281,7 @@ public static class Config
             {
                 throw new ArgumentException(Text.Localize("临时文件名前缀不能为空白字符串。"), nameof(value));
             }
+
             lock (_syncLock)
             {
                 _localSettings.Values[KeyTempFilePrefix] = value;
@@ -404,7 +293,8 @@ public static class Config
     /// 获取或设置执行前语言选择框的显示模式。
     /// </summary>
     /// <value>
-    /// LanguageSelectorMode 枚举值，默认为 HideWhenHighConfidence（有语言高可信时不显示）。
+    /// LanguageSelectorMode 枚举值，默认为 AutoHide（可信时自动隐藏）。
+    /// 若存储中的值无法映射到有效枚举，则回退为默认值。
     /// 设置时立即持久化到本地存储。
     /// </value>
     public static LanguageSelectorMode SelectorMode
@@ -413,9 +303,11 @@ public static class Config
         {
             lock (_syncLock)
             {
-                return _localSettings.Values.TryGetValue(KeyLanguageSelectorMode, out object? value) && value is int intValue
+                return _localSettings.Values.TryGetValue(KeyLanguageSelectorMode, out object? value)
+                       && value is int intValue
+                       && Enum.IsDefined(typeof(LanguageSelectorMode), intValue)
                     ? (LanguageSelectorMode)intValue
-                    : LanguageSelectorMode.HideWhenHighConfidence;
+                    : LanguageSelectorMode.AutoHide;
             }
         }
         set
@@ -440,7 +332,9 @@ public static class Config
         {
             lock (_syncLock)
             {
-                return _localSettings.Values.TryGetValue(KeyConfirmBeforeExecution, out object? value) && value is bool boolValue && boolValue;
+                return _localSettings.Values.TryGetValue(KeyConfirmBeforeExecution, out object? value)
+                       && value is bool boolValue
+                       && boolValue;
             }
         }
         set
@@ -510,54 +404,49 @@ public static class Config
     /// 获取当前配置的终端可执行文件名。
     /// </summary>
     /// <value>
-    /// 根据 Terminal 设置返回对应的可执行文件名：wt.exe 或 cmd.exe。
+    /// 根据 <see cref="Terminal"/> 设置返回对应的可执行文件名：wt.exe 或 cmd.exe。
     /// </value>
     public static string TerminalExecutable => Terminal switch
     {
         TerminalType.WindowsTerminal => WindowsTerminalExecutable,
         TerminalType.Cmd => CmdExecutable,
-        _ => WindowsTerminalExecutable
+        _ => WindowsTerminalExecutable,
     };
 
     /// <summary>
-    /// 获取或设置语言识别的置信度判定范围。
+    /// 获取或设置语言识别的置信度阈值。
     /// </summary>
     /// <value>
-    /// ConfidenceRange 结构体，定义低、中、高置信度的分界阈值。
-    /// 默认下界为 0.7，上界为 0.95。
-    /// 设置时立即持久化到本地存储。
+    /// 范围 [0.0, 1.0]，默认为 0.75。
+    /// 高于此值判定为可信，低于此值判定为不可信。
+    /// 若存储中的值超出有效范围则回退为默认值。
     /// </value>
-    /// <exception cref="ArgumentOutOfRangeException">当设置的范围边界超出 [0.0, 1.0] 时抛出。</exception>
-    /// <exception cref="ArgumentException">当设置的下界大于上界时抛出。</exception>
-    public static ConfidenceRange ConfidenceThreshold
+    /// <exception cref="ArgumentOutOfRangeException">当设置值超出 [0.0, 1.0] 范围时抛出。</exception>
+    public static double ConfidenceThreshold
     {
         get
         {
             lock (_syncLock)
             {
-                double lowerBound = _localSettings.Values.TryGetValue(KeyConfidenceLowerBound, out object? lowerValue) && lowerValue is double lower
-                    ? lower
-                    : ConfidenceRange.DefaultLowerBound;
-
-                double upperBound = _localSettings.Values.TryGetValue(KeyConfidenceUpperBound, out object? upperValue) && upperValue is double upper
-                    ? upper
-                    : ConfidenceRange.DefaultUpperBound;
-
-                bool isValidRange = lowerBound >= ConfidenceRange.MinValue
-                                    && lowerBound <= ConfidenceRange.MaxValue
-                                    && upperBound >= ConfidenceRange.MinValue
-                                    && upperBound <= ConfidenceRange.MaxValue
-                                    && lowerBound <= upperBound;
-
-                return isValidRange ? new ConfidenceRange(lowerBound, upperBound) : ConfidenceRange.Default;
+                return _localSettings.Values.TryGetValue(KeyConfidenceThreshold, out object? value)
+                       && value is double doubleValue
+                       && doubleValue >= 0.0
+                       && doubleValue <= 1.0
+                    ? doubleValue
+                    : DefaultConfidenceThreshold;
             }
         }
         set
         {
+            if (value is < 0.0 or > 1.0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(value), value,
+                    Text.Localize("置信度阈值必须在 [0.0, 1.0] 范围内。"));
+            }
+
             lock (_syncLock)
             {
-                _localSettings.Values[KeyConfidenceLowerBound] = value.LowerBound;
-                _localSettings.Values[KeyConfidenceUpperBound] = value.UpperBound;
+                _localSettings.Values[KeyConfidenceThreshold] = value;
             }
         }
     }
@@ -570,12 +459,10 @@ public static class Config
     /// 获取指定脚本语言的执行指令。
     /// </summary>
     /// <param name="language">
-    /// 脚本语言标识符，必须是 SupportedLanguages 中定义的有效值，不区分大小写。
+    /// 脚本语言标识符，必须是 <see cref="SupportedLanguages"/> 中定义的有效值，不区分大小写。
     /// 不允许为 null 或空白字符串。
     /// </param>
-    /// <returns>
-    /// 该语言对应的执行指令字符串；若未配置则返回该语言的默认指令。
-    /// </returns>
+    /// <returns>该语言对应的执行指令字符串；若未配置则返回该语言的默认指令。</returns>
     /// <exception cref="ArgumentNullException">当 language 为 null 时抛出。</exception>
     /// <exception cref="ArgumentException">当 language 为空白字符串或不在支持列表中时抛出。</exception>
     public static string GetLanguageCommand(string language)
@@ -605,17 +492,13 @@ public static class Config
     /// 设置指定脚本语言的执行指令。
     /// </summary>
     /// <param name="language">
-    /// 脚本语言标识符，必须是 SupportedLanguages 中定义的有效值，不区分大小写。
+    /// 脚本语言标识符，必须是 <see cref="SupportedLanguages"/> 中定义的有效值，不区分大小写。
     /// 不允许为 null 或空白字符串。
     /// </param>
-    /// <param name="command">
-    /// 执行指令字符串，不允许为 null 或空白字符串。
-    /// </param>
+    /// <param name="command">执行指令字符串，不允许为 null 或空白字符串。</param>
     /// <exception cref="ArgumentNullException">当 language 或 command 为 null 时抛出。</exception>
     /// <exception cref="ArgumentException">当参数为空白字符串或 language 不在支持列表中时抛出。</exception>
-    /// <remarks>
-    /// 设置后立即持久化到本地存储。
-    /// </remarks>
+    /// <remarks>设置后立即持久化到本地存储。</remarks>
     public static void SetLanguageCommand(string language, string command)
     {
         ArgumentNullException.ThrowIfNull(language);
@@ -646,12 +529,8 @@ public static class Config
     /// <summary>
     /// 获取所有语言的执行指令配置副本。
     /// </summary>
-    /// <returns>
-    /// 包含所有已配置语言及其执行指令的字典副本；未配置的语言将使用默认值填充。
-    /// </returns>
-    /// <remarks>
-    /// 返回的是配置数据的深拷贝，修改返回值不会影响内部存储。
-    /// </remarks>
+    /// <returns>包含所有已配置语言及其执行指令的字典副本；未配置的语言将使用默认值填充。</returns>
+    /// <remarks>返回的是配置数据的深拷贝，修改返回值不会影响内部存储。</remarks>
     public static Dictionary<string, string> GetAllLanguageCommands()
     {
         lock (_syncLock)
@@ -668,14 +547,12 @@ public static class Config
     /// 将指定语言的执行指令重置为默认值。
     /// </summary>
     /// <param name="language">
-    /// 脚本语言标识符，必须是 SupportedLanguages 中定义的有效值，不区分大小写。
+    /// 脚本语言标识符，必须是 <see cref="SupportedLanguages"/> 中定义的有效值，不区分大小写。
     /// 不允许为 null 或空白字符串。
     /// </param>
     /// <exception cref="ArgumentNullException">当 language 为 null 时抛出。</exception>
     /// <exception cref="ArgumentException">当 language 为空白字符串或不在支持列表中时抛出。</exception>
-    /// <remarks>
-    /// 重置后立即持久化到本地存储。
-    /// </remarks>
+    /// <remarks>重置后立即持久化到本地存储。</remarks>
     public static void ResetLanguageCommand(string language)
     {
         ArgumentNullException.ThrowIfNull(language);
@@ -701,9 +578,7 @@ public static class Config
     /// <summary>
     /// 将所有语言的执行指令重置为默认值。
     /// </summary>
-    /// <remarks>
-    /// 重置后立即持久化到本地存储。
-    /// </remarks>
+    /// <remarks>重置后立即持久化到本地存储。</remarks>
     public static void ResetAllLanguageCommands()
     {
         lock (_syncLock)
@@ -723,63 +598,50 @@ public static class Config
     /// </summary>
     /// <param name="theme">主题风格枚举值。</param>
     /// <returns>本地化后的显示名称字符串。</returns>
-    public static string GetThemeDisplayName(ThemeStyle theme)
+    public static string GetThemeDisplayName(ThemeStyle theme) => theme switch
     {
-        return theme switch
-        {
-            ThemeStyle.FollowSystem => Text.Localize("跟随系统"),
-            ThemeStyle.Light => Text.Localize("浅色"),
-            ThemeStyle.Dark => Text.Localize("深色"),
-            _ => theme.ToString()
-        };
-    }
+        ThemeStyle.FollowSystem => Text.Localize("跟随系统"),
+        ThemeStyle.Light => Text.Localize("浅色"),
+        ThemeStyle.Dark => Text.Localize("深色"),
+        _ => theme.ToString(),
+    };
 
     /// <summary>
     /// 获取显示语言枚举值的本地化显示名称。
     /// </summary>
     /// <param name="language">显示语言枚举值。</param>
     /// <returns>本地化后的显示名称字符串。</returns>
-    public static string GetLanguageDisplayName(DisplayLanguage language)
+    public static string GetLanguageDisplayName(DisplayLanguage language) => language switch
     {
-        return language switch
-        {
-            DisplayLanguage.FollowSystem => Text.Localize("跟随系统"),
-            DisplayLanguage.Chinese => Text.Localize("简体中文"),
-            DisplayLanguage.English => Text.Localize("English"),
-            _ => language.ToString()
-        };
-    }
+        DisplayLanguage.FollowSystem => Text.Localize("跟随系统"),
+        DisplayLanguage.Chinese => Text.Localize("简体中文"),
+        DisplayLanguage.English => Text.Localize("English"),
+        _ => language.ToString(),
+    };
 
     /// <summary>
     /// 获取语言选择器模式枚举值的本地化显示名称。
     /// </summary>
     /// <param name="mode">语言选择器模式枚举值。</param>
     /// <returns>本地化后的显示名称字符串。</returns>
-    public static string GetSelectorModeDisplayName(LanguageSelectorMode mode)
+    public static string GetSelectorModeDisplayName(LanguageSelectorMode mode) => mode switch
     {
-        return mode switch
-        {
-            LanguageSelectorMode.AlwaysShow => Text.Localize("始终显示"),
-            LanguageSelectorMode.HideWhenHighConfidence => Text.Localize("高可信时隐藏"),
-            LanguageSelectorMode.ShowOnlyWhenNoConfidence => Text.Localize("仅无可信时显示"),
-            _ => mode.ToString()
-        };
-    }
+        LanguageSelectorMode.AlwaysShow => Text.Localize("始终显示"),
+        LanguageSelectorMode.AutoHide => Text.Localize("自动隐藏"),
+        _ => mode.ToString(),
+    };
 
     /// <summary>
     /// 获取终端类型枚举值的本地化显示名称。
     /// </summary>
     /// <param name="terminal">终端类型枚举值。</param>
     /// <returns>本地化后的显示名称字符串。</returns>
-    public static string GetTerminalDisplayName(TerminalType terminal)
+    public static string GetTerminalDisplayName(TerminalType terminal) => terminal switch
     {
-        return terminal switch
-        {
-            TerminalType.WindowsTerminal => Text.Localize("Windows 终端"),
-            TerminalType.Cmd => Text.Localize("命令提示符"),
-            _ => terminal.ToString()
-        };
-    }
+        TerminalType.WindowsTerminal => Text.Localize("Windows 终端"),
+        TerminalType.Cmd => Text.Localize("命令提示符"),
+        _ => terminal.ToString(),
+    };
 
     #endregion
 
@@ -790,7 +652,7 @@ public static class Config
     /// </summary>
     /// <remarks>
     /// 包括主题风格、显示语言、临时文件前缀、语言选择框模式、执行确认开关、
-    /// 置信度范围、执行后自动退出、终端类型以及所有语言执行指令。
+    /// 置信度阈值、执行后自动退出、终端类型以及所有语言执行指令。
     /// 重置后立即持久化到本地存储。
     /// </remarks>
     public static void ResetAllSettings()
@@ -800,30 +662,14 @@ public static class Config
             _localSettings.Values[KeyThemeStyle] = (int)ThemeStyle.FollowSystem;
             _localSettings.Values[KeyDisplayLanguage] = (int)DisplayLanguage.FollowSystem;
             _localSettings.Values[KeyTempFilePrefix] = DefaultTempFilePrefix;
-            _localSettings.Values[KeyLanguageSelectorMode] = (int)LanguageSelectorMode.HideWhenHighConfidence;
+            _localSettings.Values[KeyLanguageSelectorMode] = (int)LanguageSelectorMode.AutoHide;
             _localSettings.Values[KeyConfirmBeforeExecution] = false;
-            _localSettings.Values[KeyConfidenceLowerBound] = ConfidenceRange.DefaultLowerBound;
-            _localSettings.Values[KeyConfidenceUpperBound] = ConfidenceRange.DefaultUpperBound;
+            _localSettings.Values[KeyConfidenceThreshold] = DefaultConfidenceThreshold;
             _localSettings.Values[KeyAutoExitAfterExecution] = true;
             _localSettings.Values[KeyTerminalType] = (int)TerminalType.WindowsTerminal;
             _languageCommands = CreateDefaultLanguageCommands();
             _languageCommandsLoaded = true;
             PersistLanguageCommands();
-        }
-    }
-
-    /// <summary>
-    /// 将置信度范围重置为默认值。
-    /// </summary>
-    /// <remarks>
-    /// 重置后立即持久化到本地存储。
-    /// </remarks>
-    public static void ResetConfidenceThreshold()
-    {
-        lock (_syncLock)
-        {
-            _localSettings.Values[KeyConfidenceLowerBound] = ConfidenceRange.DefaultLowerBound;
-            _localSettings.Values[KeyConfidenceUpperBound] = ConfidenceRange.DefaultUpperBound;
         }
     }
 
@@ -835,7 +681,7 @@ public static class Config
     /// 确保语言指令配置已从存储加载到内存缓存。
     /// </summary>
     /// <remarks>
-    /// 必须在持有 _syncLock 的情况下调用。
+    /// 必须在持有 <see cref="_syncLock"/> 的情况下调用。
     /// 若存储中无数据或数据损坏，将使用默认值初始化。
     /// </remarks>
     private static void EnsureLanguageCommandsLoaded()
@@ -872,7 +718,7 @@ public static class Config
     /// 将当前内存中的语言指令配置持久化到本地存储。
     /// </summary>
     /// <remarks>
-    /// 必须在持有 _syncLock 的情况下调用。
+    /// 必须在持有 <see cref="_syncLock"/> 的情况下调用。
     /// 使用 JSON 格式序列化存储。
     /// </remarks>
     private static void PersistLanguageCommands()
@@ -903,19 +749,16 @@ public static class Config
     /// </summary>
     /// <param name="language">已规范化为小写的语言标识符。</param>
     /// <returns>该语言的默认执行指令字符串。</returns>
-    private static string GetDefaultLanguageCommand(string language)
+    private static string GetDefaultLanguageCommand(string language) => language switch
     {
-        return language switch
-        {
-            "bat" => "cmd /c",
-            "powershell" => "powershell -ExecutionPolicy Bypass -File",
-            "python" => "python",
-            "lua" => "lua",
-            "nim" => "nim r",
-            "go" => "go run",
-            _ => language
-        };
-    }
+        "bat" => "cmd /c",
+        "powershell" => "powershell -ExecutionPolicy Bypass -File",
+        "python" => "python",
+        "lua" => "lua",
+        "nim" => "nim r",
+        "go" => "go run",
+        _ => language,
+    };
 
     #endregion
 }
