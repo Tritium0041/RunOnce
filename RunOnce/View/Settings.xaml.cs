@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: View/Settings.xaml.cs
- * @date: 2026-02-09
+ * @date: 2026-02-10
  */
 
 #nullable enable
@@ -123,7 +123,6 @@ public sealed partial class Settings : Page
     /// </summary>
     private void ApplyWideLocalizedTexts()
     {
-        WideBuildTimeText.Text = $"{Text.Localize("编译于")} {ViewModel.BuildTimeText}";
         WideStoreLink.Content = Text.Localize("微软商店");
         WideResetLink.Content = Text.Localize("重置所有设置");
     }
@@ -217,6 +216,7 @@ public sealed partial class Settings : Page
         {
             Content = contentPanel,
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            MaxHeight = Math.Max(200, XamlRoot.Size.Height - 200),
             Padding = new Thickness(0, 0, 16, 0),
         };
 
@@ -264,7 +264,13 @@ public sealed partial class Settings : Page
                 string currentCommand = currentCommands.GetValueOrDefault(language, language);
                 TextBox textBox = new()
                 {
-                    Header = language.ToUpperInvariant(),
+                    Header = new TextBlock
+                    {
+                        Text = language.ToUpperInvariant(),
+                        FontSize = 13,
+                        FontStyle = Windows.UI.Text.FontStyle.Italic,
+                        Opacity = 0.6,
+                    },
                     Text = currentCommand,
                     PlaceholderText = currentCommand,
                 };

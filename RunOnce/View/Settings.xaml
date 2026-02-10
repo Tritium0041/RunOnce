@@ -39,46 +39,77 @@
             x:Name="LeftPanel"
             Grid.Column="0"
             Visibility="Collapsed"
-            Padding="36,24,24,24">
+            Padding="24">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <StackPanel Grid.Row="0" Spacing="4" VerticalAlignment="Top">
+            <!-- 居中品牌信息 -->
+            <StackPanel
+                Grid.Row="0"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="6">
+
                 <Image
                     Source="ms-appx:///Assets/logo.png"
-                    Width="128"
+                    Width="100"
                     Stretch="Uniform"
-                    HorizontalAlignment="Left"
-                    Margin="0,0,0,16"/>
+                    HorizontalAlignment="Center"
+                    Margin="0,0,0,10"/>
+
+                <TextBlock Text="{x:Bind ViewModel.AppName, Mode=OneWay}"
+                    FontSize="20"
+                    FontWeight="SemiBold"
+                    HorizontalAlignment="Center"
+                    Margin="0,12,0,0"/>
+
                 <TextBlock
-                    Text="{x:Bind ViewModel.AppName, Mode=OneWay}"
-                    Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                    Text="{x:Bind ViewModel.VersionDisplay}"
+                    Style="{ThemeResource BodyTextBlockStyle}"
+                    HorizontalAlignment="Center"/>
+
+                <StackPanel
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Center"
+                    Spacing="6">
+                    <TextBlock
+                        Text="{x:Bind ViewModel.Author}"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        VerticalAlignment="Center"/>
+                    <TextBlock
+                        Text="·"
+                        Style="{ThemeResource CaptionTextBlockStyle}"
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        VerticalAlignment="Center"/>
+                    <HyperlinkButton
+                        Content="GitHub"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        Click="GitHubLink_Click"/>
+                </StackPanel>
+
                 <TextBlock
-                    Text="{x:Bind ViewModel.VersionAndAuthor}"
-                    Style="{ThemeResource CaptionTextBlockStyle}"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <TextBlock
-                    x:Name="WideBuildTimeText"
+                    Text="{x:Bind ViewModel.BuildTimeText}"
                     Style="{ThemeResource CaptionTextBlockStyle}"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    Margin="0,0,0,12"/>
-                <HyperlinkButton
-                    Content="GitHub"
-                    Padding="0"
-                    Click="GitHubLink_Click"/>
+                    HorizontalAlignment="Center"/>
+
                 <HyperlinkButton
                     x:Name="WideStoreLink"
                     Padding="0"
+                    HorizontalAlignment="Center"
                     Click="StoreLink_Click"/>
             </StackPanel>
 
+            <!-- 重置链接 -->
             <HyperlinkButton
                 x:Name="WideResetLink"
                 Grid.Row="1"
                 Padding="0"
-                HorizontalAlignment="Left"
+                HorizontalAlignment="Center"
                 Click="ResetAllLink_Click"/>
         </Grid>
 
@@ -86,10 +117,9 @@
         <ScrollViewer
             Grid.Column="1"
             VerticalScrollBarVisibility="Auto"
-            Padding="36,24,36,24">
+            Padding="24,24,24,24">
             <StackPanel
                 Spacing="2"
-                MaxWidth="600"
                 HorizontalAlignment="Stretch">
 
                 <!-- 页面标题 -->
@@ -122,9 +152,9 @@
                     </StackPanel>
                     <ComboBox
                         Grid.Column="1"
-                        MinWidth="150"
+                        MinWidth="180"
                         VerticalAlignment="Center"
-                        ItemsSource="{x:Bind ViewModel.ThemeOptions, Mode=OneWay}"
+                        ItemsSource="{x:Bind ViewModel.ThemeOptions}"
                         SelectedIndex="{x:Bind ViewModel.SelectedThemeIndex, Mode=TwoWay}"/>
                 </Grid>
 
@@ -146,9 +176,9 @@
                     </StackPanel>
                     <ComboBox
                         Grid.Column="1"
-                        MinWidth="150"
+                        MinWidth="180"
                         VerticalAlignment="Center"
-                        ItemsSource="{x:Bind ViewModel.LanguageOptions, Mode=OneWay}"
+                        ItemsSource="{x:Bind ViewModel.LanguageOptions}"
                         SelectedIndex="{x:Bind ViewModel.SelectedLanguageIndex, Mode=TwoWay}"/>
                 </Grid>
 
@@ -177,9 +207,9 @@
                     <ToggleSwitch
                         Grid.Column="1"
                         VerticalAlignment="Center"
-                        OnContent=""
-                        OffContent=""
-                        Margin="0,0,-4,0"
+                        OnContent="{x:Null}"
+                        OffContent="{x:Null}"
+                        MinWidth="0"
                         IsOn="{x:Bind ViewModel.ConfirmBeforeExecution, Mode=TwoWay}"/>
                 </Grid>
 
@@ -201,9 +231,9 @@
                     </StackPanel>
                     <ComboBox
                         Grid.Column="1"
-                        MinWidth="150"
+                        MinWidth="180"
                         VerticalAlignment="Center"
-                        ItemsSource="{x:Bind ViewModel.SelectorModeOptions, Mode=OneWay}"
+                        ItemsSource="{x:Bind ViewModel.SelectorModeOptions}"
                         SelectedIndex="{x:Bind ViewModel.SelectedSelectorModeIndex, Mode=TwoWay}"/>
                 </Grid>
 
@@ -226,9 +256,9 @@
                     <ToggleSwitch
                         Grid.Column="1"
                         VerticalAlignment="Center"
-                        OnContent=""
-                        OffContent=""
-                        Margin="0,0,-4,0"
+                        OnContent="{x:Null}"
+                        OffContent="{x:Null}"
+                        MinWidth="0"
                         IsOn="{x:Bind ViewModel.AutoExitAfterExecution, Mode=TwoWay}"/>
                 </Grid>
 
@@ -250,9 +280,9 @@
                     </StackPanel>
                     <ComboBox
                         Grid.Column="1"
-                        MinWidth="150"
+                        MinWidth="180"
                         VerticalAlignment="Center"
-                        ItemsSource="{x:Bind ViewModel.TerminalOptions, Mode=OneWay}"
+                        ItemsSource="{x:Bind ViewModel.TerminalOptions}"
                         SelectedIndex="{x:Bind ViewModel.SelectedTerminalIndex, Mode=TwoWay}"/>
                 </Grid>
 

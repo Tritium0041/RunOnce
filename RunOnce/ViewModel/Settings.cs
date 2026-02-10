@@ -4,17 +4,20 @@
  *
  * @author: WaterRun
  * @file: ViewModel/Settings.cs
- * @date: 2026-02-09
+ * @date: 2026-02-10
  */
 
 #nullable enable
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using RunOnce.Static;
 
 namespace RunOnce.ViewModel;
@@ -23,11 +26,12 @@ namespace RunOnce.ViewModel;
 /// 设置页面的 ViewModel，承载所有用户可交互设置的状态及关于信息。
 /// </summary>
 /// <remarks>
-/// 不变量：所有可变属性的 Setter 在非抑制状态下同步写入 <see cref="Config"/>；选项列表与选中索引始终一致。
+/// 不变量：所有可变属性的 Setter 在非抑制状态下同步写入 <see cref="Config"/>；
+/// 选项列表使用 <see cref="ObservableCollection{T}"/> 实现原地更新，避免语言切换时的布局抖动。
 /// 线程安全：非线程安全，所有成员必须在 UI 线程访问。
 /// 副作用：属性 Setter 会触发 <see cref="Config"/> 的持久化写入及 PropertyChanged 通知。
 /// </remarks>
-public sealed class SettingsViewModel : ViewModelBase
+public sealed class SettingsViewModel : INotifyPropertyChanged
 {
     /// <summary>
     /// 应用程序编译时间戳，静态缓存避免重复计算。
@@ -39,27 +43,27 @@ public sealed class SettingsViewModel : ViewModelBase
     /// </summary>
     private bool _isSuppressingChanges;
 
-    #region 选项列表后备字段
+    #region 选项列表（ObservableCollection 实现原地更新）
 
     /// <summary>
     /// 主题风格 ComboBox 的显示选项列表。
     /// </summary>
-    private List<string> _themeOptions = [];
+    private readonly ObservableCollection<string> _themeOptions;
 
     /// <summary>
     /// 显示语言 ComboBox 的显示选项列表。
     /// </summary>
-    private List<string> _languageOptions = [];
+    private readonly ObservableCollection<string> _languageOptions;
 
     /// <summary>
     /// 语言选择框模式 ComboBox 的显示选项列表。
     /// </summary>
-    private List<string> _selectorModeOptions = [];
+    private readonly ObservableCollection<string> _selectorModeOptions;
 
     /// <summary>
     /// 终端类型 ComboBox 的显示选项列表。
     /// </summary>
-    private List<string> _terminalOptions = [];
+    private readonly ObservableCollection<string> _terminalOptions;
 
     #endregion
 
@@ -104,6 +108,15 @@ public sealed class SettingsViewModel : ViewModelBase
     #region 事件
 
     /// <summary>
+    /// 属性值变更时触发的事件。
+    /// </summary>
+    /// <remarks>
+    /// 触发时机：调用 <see cref="SetProperty{T}"/> 且新旧值不相等时，或显式调用 <see cref="OnPropertyChanged"/>。
+    /// 线程上下文：在调用线程触发，通常为 UI 线程。
+    /// </remarks>
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>
     /// 用户更改主题风格时触发，参数为新选中的主题值。
     /// </summary>
     /// <remarks>
@@ -129,8 +142,12 @@ public sealed class SettingsViewModel : ViewModelBase
     /// </summary>
     public SettingsViewModel()
     {
+        _themeOptions = new(Enum.GetValues<ThemeStyle>().Select(Config.GetThemeDisplayName));
+        _languageOptions = new(Enum.GetValues<DisplayLanguage>().Select(Config.GetLanguageDisplayName));
+        _selectorModeOptions = new(Enum.GetValues<LanguageSelectorMode>().Select(Config.GetSelectorModeDisplayName));
+        _terminalOptions = new(Enum.GetValues<TerminalType>().Select(Config.GetTerminalDisplayName));
+
         _isSuppressingChanges = true;
-        BuildOptionLists();
         SynchronizeFromConfig();
         _isSuppressingChanges = false;
     }
@@ -140,42 +157,26 @@ public sealed class SettingsViewModel : ViewModelBase
     /// <summary>
     /// 主题风格 ComboBox 的本地化显示选项列表。
     /// </summary>
-    /// <value>包含所有 <see cref="ThemeStyle"/> 枚举值的本地化名称。列表引用在语言切换时替换。</value>
-    public List<string> ThemeOptions
-    {
-        get => _themeOptions;
-        private set => SetProperty(ref _themeOptions, value);
-    }
+    /// <value>包含所有 <see cref="ThemeStyle"/> 枚举值的本地化名称。语言切换时通过原地更新保持引用不变。</value>
+    public ObservableCollection<string> ThemeOptions => _themeOptions;
 
     /// <summary>
     /// 显示语言 ComboBox 的本地化显示选项列表。
     /// </summary>
     /// <value>包含所有 <see cref="DisplayLanguage"/> 枚举值的本地化名称。</value>
-    public List<string> LanguageOptions
-    {
-        get => _languageOptions;
-        private set => SetProperty(ref _languageOptions, value);
-    }
+    public ObservableCollection<string> LanguageOptions => _languageOptions;
 
     /// <summary>
     /// 语言选择框模式 ComboBox 的本地化显示选项列表。
     /// </summary>
     /// <value>包含所有 <see cref="LanguageSelectorMode"/> 枚举值的本地化名称。</value>
-    public List<string> SelectorModeOptions
-    {
-        get => _selectorModeOptions;
-        private set => SetProperty(ref _selectorModeOptions, value);
-    }
+    public ObservableCollection<string> SelectorModeOptions => _selectorModeOptions;
 
     /// <summary>
     /// 终端类型 ComboBox 的本地化显示选项列表。
     /// </summary>
     /// <value>包含所有 <see cref="TerminalType"/> 枚举值的本地化名称。</value>
-    public List<string> TerminalOptions
-    {
-        get => _terminalOptions;
-        private set => SetProperty(ref _terminalOptions, value);
-    }
+    public ObservableCollection<string> TerminalOptions => _terminalOptions;
 
     #endregion
 
@@ -301,16 +302,16 @@ public sealed class SettingsViewModel : ViewModelBase
     public string Version => Config.Version;
 
     /// <summary>
+    /// 带前缀的版本号显示文本。
+    /// </summary>
+    /// <value>格式为 "v{Version}"，用于宽屏左侧面板显示。</value>
+    public string VersionDisplay => $"v{Config.Version}";
+
+    /// <summary>
     /// 应用程序作者名称。
     /// </summary>
     /// <value>固定值 "WaterRun"。</value>
     public string Author => Config.Author;
-
-    /// <summary>
-    /// 版本与作者的组合显示文本。
-    /// </summary>
-    /// <value>格式为 "v{Version} · {Author}"，用于宽屏左侧面板。</value>
-    public string VersionAndAuthor => $"v{Config.Version} · {Config.Author}";
 
     /// <summary>
     /// 格式化的编译时间文本。
@@ -410,7 +411,7 @@ public sealed class SettingsViewModel : ViewModelBase
     /// 将所有设置重置为默认值并同步 ViewModel 状态。
     /// </summary>
     /// <remarks>
-    /// 调用 <see cref="Config.ResetAllSettings"/> 后重建选项列表并同步控件状态。
+    /// 调用 <see cref="Config.ResetAllSettings"/> 后原地刷新选项文本并同步控件状态。
     /// 调用方需额外处理主题应用与 UI 刷新。
     /// </remarks>
     public void ResetAllSettings()
@@ -418,7 +419,7 @@ public sealed class SettingsViewModel : ViewModelBase
         Config.ResetAllSettings();
 
         _isSuppressingChanges = true;
-        BuildOptionLists();
+        RefreshOptionTexts();
         SynchronizeFromConfig();
         OnPropertyChanged(nameof(AppName));
         _isSuppressingChanges = false;
@@ -432,16 +433,50 @@ public sealed class SettingsViewModel : ViewModelBase
     /// 在显示语言变更后刷新所有本地化相关的 ViewModel 状态。
     /// </summary>
     /// <remarks>
-    /// 重建选项列表（使用新语言的显示名称）、重新同步选中索引、通知 AppName 变更。
-    /// 此方法内部使用抑制标志防止 Config 回写。
+    /// 通过 <see cref="ObservableCollection{T}"/> 的原地更新机制刷新选项显示文本。
+    /// 因 WinUI 3 ComboBox 在 Replace 选中项时会将 SelectedIndex 重置为 -1，
+    /// 故在抑制状态下重新同步索引以恢复正确选中。
     /// </remarks>
     public void RefreshAfterLanguageChange()
     {
         _isSuppressingChanges = true;
-        BuildOptionLists();
+        RefreshOptionTexts();
         SynchronizeFromConfig();
-        OnPropertyChanged(nameof(AppName));
         _isSuppressingChanges = false;
+        OnPropertyChanged(nameof(AppName));
+    }
+
+    #endregion
+
+    #region INotifyPropertyChanged 实现
+
+    /// <summary>
+    /// 触发指定属性的变更通知。
+    /// </summary>
+    /// <param name="propertyName">变更的属性名称，由编译器自动填充。不允许为 null。</param>
+    private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    /// <summary>
+    /// 设置属性后备字段的值，若值发生变化则触发变更通知。
+    /// </summary>
+    /// <typeparam name="T">属性值的类型。</typeparam>
+    /// <param name="field">属性的后备字段引用。</param>
+    /// <param name="value">待设置的新值。</param>
+    /// <param name="propertyName">属性名称，由编译器自动填充。不允许为 null。</param>
+    /// <returns>若值发生变化并已通知则返回 true，否则返回 false。</returns>
+    private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+    {
+        if (EqualityComparer<T>.Default.Equals(field, value))
+        {
+            return false;
+        }
+
+        field = value;
+        OnPropertyChanged(propertyName);
+        return true;
     }
 
     #endregion
@@ -449,18 +484,40 @@ public sealed class SettingsViewModel : ViewModelBase
     #region 私有辅助方法
 
     /// <summary>
-    /// 从 <see cref="Config"/> 的本地化方法构建所有 ComboBox 的选项列表。
+    /// 原地更新所有 ComboBox 选项列表的显示文本，保持集合引用与选中索引不变。
     /// </summary>
-    private void BuildOptionLists()
+    private void RefreshOptionTexts()
     {
-        ThemeOptions = Enum.GetValues<ThemeStyle>().Select(Config.GetThemeDisplayName).ToList();
-        LanguageOptions = Enum.GetValues<DisplayLanguage>().Select(Config.GetLanguageDisplayName).ToList();
-        SelectorModeOptions = Enum.GetValues<LanguageSelectorMode>().Select(Config.GetSelectorModeDisplayName).ToList();
-        TerminalOptions = Enum.GetValues<TerminalType>().Select(Config.GetTerminalDisplayName).ToList();
+        UpdateCollectionItems(_themeOptions, Enum.GetValues<ThemeStyle>().Select(Config.GetThemeDisplayName));
+        UpdateCollectionItems(_languageOptions, Enum.GetValues<DisplayLanguage>().Select(Config.GetLanguageDisplayName));
+        UpdateCollectionItems(_selectorModeOptions, Enum.GetValues<LanguageSelectorMode>().Select(Config.GetSelectorModeDisplayName));
+        UpdateCollectionItems(_terminalOptions, Enum.GetValues<TerminalType>().Select(Config.GetTerminalDisplayName));
     }
 
     /// <summary>
-    /// 从 <see cref="Config"/> 读取当前值并设置到对应的后备字段与属性。
+    /// 原地更新 <see cref="ObservableCollection{T}"/> 中的元素，仅替换发生变化的项。
+    /// </summary>
+    /// <param name="collection">待更新的目标集合。</param>
+    /// <param name="newItems">新的元素序列，长度应与集合相同。</param>
+    private static void UpdateCollectionItems(ObservableCollection<string> collection, IEnumerable<string> newItems)
+    {
+        int index = 0;
+        foreach (string item in newItems)
+        {
+            if (index < collection.Count)
+            {
+                if (!string.Equals(collection[index], item, StringComparison.Ordinal))
+                {
+                    collection[index] = item;
+                }
+            }
+
+            index++;
+        }
+    }
+
+    /// <summary>
+    /// 从 <see cref="Config"/> 读取当前值并设置到对应的属性。
     /// </summary>
     private void SynchronizeFromConfig()
     {
