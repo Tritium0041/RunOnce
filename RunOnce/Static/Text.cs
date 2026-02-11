@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: Static/Text.cs
- * @date: 2026-02-09
+ * @date: 2026-02-11
  */
 
 #nullable enable
@@ -80,6 +80,21 @@ public static class Text
         ["配置临时文件、置信度阈值和语言命令"] = "Configure the temporary file, confidence threshold, and language commands",
         ["打开"] = "Open",
 
+        // 设置页面 - 快捷键
+        ["快捷键"] = "Keyboard Shortcuts",
+        ["查看应用程序支持的快捷键"] = "View supported keyboard shortcuts",
+        ["查看"] = "View",
+        ["关闭"] = "Close",
+        ["执行代码"] = "Execute Code",
+        ["撤销"] = "Undo",
+        ["重做"] = "Redo",
+        ["全选"] = "Select All",
+        ["复制"] = "Copy",
+        ["粘贴"] = "Paste",
+        ["剪切"] = "Cut",
+        ["缩进"] = "Indent",
+        ["减少缩进"] = "Unindent",
+
         // 设置页面 - 关于
         ["软件名"] = "App Name",
         ["编译于"] = "Built On",
@@ -98,6 +113,17 @@ public static class Text
         // 重置确认对话框
         ["确定要将所有设置重置为默认值吗？此操作无法撤销。"] = "Are you sure you want to reset all settings to default? This action cannot be undone.",
         ["重置"] = "Reset",
+
+        // 编辑器页面
+        ["纯文本"] = "Plain Text",
+        ["行"] = "Ln",
+        ["列"] = "Col",
+        ["运行"] = "Run",
+        ["选择语言"] = "Select Language",
+        ["自动检测"] = "Auto Detect",
+        ["确定"] = "OK",
+        ["执行"] = "Execute",
+        ["确定要执行此代码吗？"] = "Are you sure you want to execute this code?",
 
         // Config.cs 中的错误消息
         ["置信度阈值必须在 [0.0, 1.0] 范围内。"] = "Confidence threshold must be in the range [0.0, 1.0].",

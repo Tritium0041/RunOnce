@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: View/Settings.xaml.cs
- * @date: 2026-02-10
+ * @date: 2026-02-11
  */
 
 #nullable enable
@@ -14,6 +14,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using RunOnce.Static;
 using RunOnce.ViewModel;
 using Windows.System;
@@ -110,6 +111,9 @@ public sealed partial class Settings : Page
         AutoExitDescription.Text = Text.Localize("代码执行后自动关闭应用程序");
         TerminalLabel.Text = Text.Localize("终端类型");
         TerminalDescription.Text = Text.Localize("选择执行代码使用的终端程序");
+        ShortcutsLabel.Text = Text.Localize("快捷键");
+        ShortcutsDescription.Text = Text.Localize("查看应用程序支持的快捷键");
+        ShortcutsButton.Content = Text.Localize("查看");
         AdvancedSettingsLabel.Text = Text.Localize("高级设置");
         AdvancedSettingsDescription.Text = Text.Localize("配置临时文件、置信度阈值和语言命令");
         AdvancedSettingsButton.Content = Text.Localize("打开");
@@ -159,7 +163,85 @@ public sealed partial class Settings : Page
 
     #endregion
 
-    #region 对话框处理
+    #region 快捷键对话框
+
+    /// <summary>
+    /// 处理快捷键查看按钮点击事件，弹出快捷键信息对话框。
+    /// </summary>
+    /// <param name="sender">事件源对象。</param>
+    /// <param name="e">路由事件参数。</param>
+    private async void ShortcutsButton_Click(object sender, RoutedEventArgs e)
+    {
+        ContentDialog dialog = BuildShortcutsDialog();
+        await dialog.ShowAsync();
+    }
+
+    /// <summary>
+    /// 构建快捷键信息对话框。
+    /// </summary>
+    /// <returns>配置完成的 <see cref="ContentDialog"/> 实例。</returns>
+    private ContentDialog BuildShortcutsDialog()
+    {
+        StackPanel panel = new() { Spacing = 8, MinWidth = 380 };
+
+        AddShortcutRow(panel, "Ctrl+Enter", Text.Localize("执行代码"));
+        AddShortcutRow(panel, "Ctrl+Z", Text.Localize("撤销"));
+        AddShortcutRow(panel, "Ctrl+Y", Text.Localize("重做"));
+        AddShortcutRow(panel, "Ctrl+A", Text.Localize("全选"));
+        AddShortcutRow(panel, "Ctrl+C", Text.Localize("复制"));
+        AddShortcutRow(panel, "Ctrl+V", Text.Localize("粘贴"));
+        AddShortcutRow(panel, "Ctrl+X", Text.Localize("剪切"));
+        AddShortcutRow(panel, "Tab", Text.Localize("缩进"));
+        AddShortcutRow(panel, "Shift+Tab", Text.Localize("减少缩进"));
+
+        return new ContentDialog
+        {
+            Title = Text.Localize("快捷键"),
+            Content = panel,
+            CloseButtonText = Text.Localize("关闭"),
+            XamlRoot = XamlRoot,
+        };
+    }
+
+    /// <summary>
+    /// 向面板添加一行快捷键信息。
+    /// </summary>
+    /// <param name="panel">目标面板。</param>
+    /// <param name="shortcut">快捷键文本。</param>
+    /// <param name="description">功能描述文本。</param>
+    private static void AddShortcutRow(StackPanel panel, string shortcut, string description)
+    {
+        Grid row = new() { Padding = new Thickness(0, 2, 0, 2) };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(130) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        TextBlock keyBlock = new()
+        {
+            Text = shortcut,
+            FontFamily = new FontFamily("Cascadia Code, Consolas, Courier New, monospace"),
+            FontSize = 13,
+            VerticalAlignment = VerticalAlignment.Center,
+            Opacity = 0.85,
+        };
+        Grid.SetColumn(keyBlock, 0);
+        row.Children.Add(keyBlock);
+
+        TextBlock descBlock = new()
+        {
+            Text = description,
+            Style = (Style)Application.Current.Resources["BodyTextBlockStyle"],
+            Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        Grid.SetColumn(descBlock, 1);
+        row.Children.Add(descBlock);
+
+        panel.Children.Add(row);
+    }
+
+    #endregion
+
+    #region 高级设置对话框
 
     /// <summary>
     /// 处理高级设置按钮点击事件，弹出高级设置对话框。

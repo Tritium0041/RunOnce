@@ -1,10 +1,10 @@
 ﻿/*
  * 应用程序入口与生命周期管理
- * 负责应用程序初始化、主窗口创建及全局主题管理
+ * 负责应用程序初始化、主窗口创建、全局主题管理及启动参数解析
  * 
  * @author: WaterRun
  * @file: App.xaml.cs
- * @date: 2026-02-03
+ * @date: 2026-02-11
  */
 
 #nullable enable
@@ -36,6 +36,12 @@ public partial class App : Application
     public Window? MainWindow => _mainWindow;
 
     /// <summary>
+    /// 获取应用程序的启动参数字符串。
+    /// </summary>
+    /// <value>通常用于从右键菜单传入工作目录路径。启动时无参数则为空字符串。</value>
+    public string LaunchArguments { get; private set; } = string.Empty;
+
+    /// <summary>
     /// 初始化应用程序实例。
     /// </summary>
     public App()
@@ -48,10 +54,11 @@ public partial class App : Application
     /// </summary>
     /// <param name="args">启动参数，包含激活类型与激活数据。</param>
     /// <remarks>
-    /// 执行顺序：创建主窗口 → 应用主题 → 激活窗口。
+    /// 执行顺序：解析启动参数 → 创建主窗口 → 应用主题 → 激活窗口。
     /// </remarks>
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        LaunchArguments = args.Arguments ?? string.Empty;
         _mainWindow = new MainWindow();
         ApplyTheme(Config.Theme);
         _mainWindow.Activate();

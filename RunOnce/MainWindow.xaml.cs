@@ -1,10 +1,10 @@
 /*
  * 应用程序主窗口
- * 提供沉浸式标题栏、页面导航框架及窗口尺寸管理
+ * 提供沉浸式标题栏、页面导航框架、窗口尺寸管理及运行按钮
  * 
  * @author: WaterRun
  * @file: MainWindow.xaml.cs
- * @date: 2026-02-03
+ * @date: 2026-02-11
  */
 
 #nullable enable
@@ -12,6 +12,7 @@
 using System;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
 using RunOnce.Static;
 using RunOnce.View;
@@ -20,7 +21,7 @@ using WinRT;
 namespace RunOnce;
 
 /// <summary>
-/// 应用程序主窗口类，承载页面导航与沉浸式标题栏。
+/// 应用程序主窗口类，承载页面导航、沉浸式标题栏与运行按钮。
 /// </summary>
 /// <remarks>
 /// 不变量：窗口创建后必须导航到编辑器页面；标题栏区域已注册为可拖拽区域。
@@ -81,7 +82,7 @@ public sealed partial class MainWindow : Window
 
         InitializeWindowMinSize();
         ConfigureTitleBar();
-        UpdateTitleText();
+        UpdateLocalizedTexts();
 
         ContentFrame.Navigate(typeof(Editor));
         _isInSettingsPage = false;
@@ -158,18 +159,19 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 更新标题栏文本为本地化名称。
+    /// 更新标题栏文本与按钮工具提示为本地化内容。
     /// </summary>
-    private void UpdateTitleText()
+    private void UpdateLocalizedTexts()
     {
         AppTitleTextBlock.Text = Text.Localize("一次运行");
+        ToolTipService.SetToolTip(RunButton, $"{Text.Localize("运行")} (Ctrl+Enter)");
     }
 
     /// <summary>
     /// 导航到编辑器页面。
     /// </summary>
     /// <remarks>
-    /// 使用从右向左的滑动动画。
+    /// 使用从右向左的滑动动画。编辑器页面使用 NavigationCacheMode.Required，导航时复用缓存实例。
     /// </remarks>
     private void NavigateToEditor()
     {
@@ -180,6 +182,12 @@ public sealed partial class MainWindow : Window
 
         _isInSettingsPage = false;
         UpdateTitleBarButtons();
+        UpdateLocalizedTexts();
+
+        if (ContentFrame.Content is Editor editor)
+        {
+            editor.RefreshLocalizedTexts();
+        }
     }
 
     /// <summary>
@@ -203,12 +211,26 @@ public sealed partial class MainWindow : Window
     /// 更新标题栏按钮可见性。
     /// </summary>
     /// <remarks>
-    /// 设置页面显示返回按钮，编辑器页面显示设置按钮。
+    /// 编辑器页面显示运行与设置按钮，设置页面显示返回按钮。
     /// </remarks>
     private void UpdateTitleBarButtons()
     {
         BackButton.Visibility = _isInSettingsPage ? Visibility.Visible : Visibility.Collapsed;
+        RunButton.Visibility = _isInSettingsPage ? Visibility.Collapsed : Visibility.Visible;
         SettingsButton.Visibility = _isInSettingsPage ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    /// <summary>
+    /// 运行按钮点击事件处理程序。
+    /// </summary>
+    /// <param name="sender">事件源对象。</param>
+    /// <param name="e">路由事件参数。</param>
+    private void RunButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (ContentFrame.Content is Editor editorPage)
+        {
+            editorPage.HandleExecuteRequest();
+        }
     }
 
     /// <summary>
@@ -236,11 +258,6 @@ public sealed partial class MainWindow : Window
     /// <summary>
     /// 窗口过程委托类型。
     /// </summary>
-    /// <param name="hWnd">窗口句柄。</param>
-    /// <param name="msg">消息标识符。</param>
-    /// <param name="wParam">消息参数。</param>
-    /// <param name="lParam">消息参数。</param>
-    /// <returns>消息处理结果。</returns>
     private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
     /// <summary>
@@ -286,19 +303,13 @@ public sealed partial class MainWindow : Window
     [Guid("EECDBF0E-BAE9-4CB6-A68E-9598E1CB57BB")]
     private interface IWindowNative
     {
-        /// <summary>
-        /// 获取窗口句柄。
-        /// </summary>
+        /// <summary>获取窗口句柄。</summary>
         IntPtr WindowHandle { get; }
     }
 
     /// <summary>
     /// 设置窗口长整型属性。
     /// </summary>
-    /// <param name="hWnd">窗口句柄。</param>
-    /// <param name="nIndex">属性索引。</param>
-    /// <param name="dwNewLong">新属性值。</param>
-    /// <returns>原属性值。</returns>
     private static IntPtr SetWindowLong(IntPtr hWnd, int nIndex, IntPtr dwNewLong)
     {
         return IntPtr.Size == 8
@@ -306,27 +317,19 @@ public sealed partial class MainWindow : Window
             : new IntPtr(SetWindowLong32(hWnd, nIndex, dwNewLong.ToInt32()));
     }
 
-    /// <summary>
-    /// 32 位 SetWindowLong 函数。
-    /// </summary>
+    /// <summary>32 位 SetWindowLong 函数。</summary>
     [DllImport("user32.dll", EntryPoint = "SetWindowLong", SetLastError = true)]
     private static extern int SetWindowLong32(IntPtr hWnd, int nIndex, int dwNewLong);
 
-    /// <summary>
-    /// 64 位 SetWindowLongPtr 函数。
-    /// </summary>
+    /// <summary>64 位 SetWindowLongPtr 函数。</summary>
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr", SetLastError = true)]
     private static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 
-    /// <summary>
-    /// 调用原始窗口过程。
-    /// </summary>
+    /// <summary>调用原始窗口过程。</summary>
     [DllImport("user32.dll")]
     private static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
-    /// <summary>
-    /// 获取窗口 DPI 值。
-    /// </summary>
+    /// <summary>获取窗口 DPI 值。</summary>
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
 

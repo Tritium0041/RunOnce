@@ -286,6 +286,29 @@
                         SelectedIndex="{x:Bind ViewModel.SelectedTerminalIndex, Mode=TwoWay}"/>
                 </Grid>
 
+                <!-- 快捷键 -->
+                <Grid
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1,0,1,1"
+                    CornerRadius="0"
+                    Padding="16,12,16,12"
+                    MinHeight="52">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock x:Name="ShortcutsLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
+                        <TextBlock x:Name="ShortcutsDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <Button
+                        x:Name="ShortcutsButton"
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        Click="ShortcutsButton_Click"/>
+                </Grid>
+
                 <!-- 高级设置 -->
                 <Grid
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
