@@ -4,7 +4,7 @@
  * 
  * @author: WaterRun
  * @file: Static/Highlight.cs
- * @date: 2026-02-04
+ * @date: 2026-03-02
  */
 
 #nullable enable
@@ -140,11 +140,16 @@ public static class Highlight
     private static readonly Dictionary<string, StringPattern> _stringPatterns = new(StringComparer.OrdinalIgnoreCase)
     {
         ["bat"] = new StringPattern(['"'], false, null),
-        ["powershell"] = new StringPattern(['"', '\''], false, null),
-        ["python"] = new StringPattern(['"', '\''], true, ["\"\"\"", "'''"]),
-        ["lua"] = new StringPattern(['"', '\''], false, ["[[", "]]"]),
+
+        ["powershell"] = new StringPattern(['"', '\''], false, ["@\"", "\"@", "@'", "'@"]),
+
+        ["python"] = new StringPattern(['"', '\''], true, ["\"\"\"", "\"\"\"", "'''", "'''"]),
+
+        ["lua"] = new StringPattern(['"', '\''], true, ["[[", "]]"]),
+
         ["nim"] = new StringPattern(['"'], true, ["\"\"\""]),
-        ["go"] = new StringPattern(['"', '\'', '`'], false, null),
+
+        ["go"] = new StringPattern(['"', '\'', '`'], true, null),
     };
 
     /// <summary>
