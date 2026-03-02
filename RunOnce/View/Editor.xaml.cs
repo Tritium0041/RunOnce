@@ -4,14 +4,13 @@
  *
  * @author: WaterRun
  * @file: View/Editor.xaml.cs
- * @date: 2026-02-11
+ * @date: 2026-03-02
  */
 
 #nullable enable
 
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
-using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;

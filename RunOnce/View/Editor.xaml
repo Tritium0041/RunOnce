@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    @file: View/Editor.xaml
+    @date: 2026-03-02
+-->
 <Page
     x:Class="RunOnce.View.Editor"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
@@ -9,11 +13,27 @@
     Background="Transparent"
     NavigationCacheMode="Required">
 
+    <Page.Resources>
+        <SolidColorBrush x:Key="TextControlBackground" Color="Transparent"/>
+        <SolidColorBrush x:Key="TextControlBackgroundPointerOver" Color="Transparent"/>
+        <SolidColorBrush x:Key="TextControlBackgroundFocused" Color="Transparent"/>
+        <SolidColorBrush x:Key="TextControlBackgroundReadOnly" Color="Transparent"/>
+        <SolidColorBrush x:Key="TextControlBackgroundDisabled" Color="Transparent"/>
+
+        <SolidColorBrush x:Key="TextControlBorderBrush" Color="Transparent"/>
+        <SolidColorBrush x:Key="TextControlBorderBrushPointerOver" Color="Transparent"/>
+        <SolidColorBrush x:Key="TextControlBorderBrushFocused" Color="Transparent"/>
+        <SolidColorBrush x:Key="TextControlBorderBrushDisabled" Color="Transparent"/>
+
+        <Thickness x:Key="TextControlBorderThemeThickness">0</Thickness>
+        <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+    </Page.Resources>
+
     <Page.KeyboardAccelerators>
         <KeyboardAccelerator Key="Enter" Modifiers="Control" Invoked="ExecuteAccelerator_Invoked"/>
     </Page.KeyboardAccelerators>
 
-    <Grid>
+    <Grid Background="Transparent">
         <Grid.RowDefinitions>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
@@ -31,6 +51,8 @@
             BorderThickness="0"
             CornerRadius="0"
             Padding="4,0,4,0"
+            Background="Transparent"
+            BorderBrush="Transparent"
             ScrollViewer.HorizontalScrollBarVisibility="Auto"
             ScrollViewer.HorizontalScrollMode="Enabled"
             ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -46,7 +68,7 @@
         <!-- 底部状态栏 -->
         <Grid
             Grid.Row="1"
-            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            Background="Transparent"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
             BorderThickness="0,1,0,0"
             Padding="4,0,12,0"
@@ -81,4 +103,3 @@
         </Grid>
     </Grid>
 </Page>
-    
