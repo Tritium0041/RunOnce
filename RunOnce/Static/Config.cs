@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: Static/Config.cs
- * @date: 2026-02-09
+ * @date: 2026-03-04
  */
 
 #nullable enable
@@ -178,7 +178,7 @@ public static class Config
     /// <summary>置信度阈值设置项的存储键名。</summary>
     private const string KeyConfidenceThreshold = "ConfidenceThreshold";
 
-    /// <summary>执行后自动退出开关设置项的存储键名。</summary>
+    /// <summary>执行时自动退出开关设置项的存储键名。</summary>
     private const string KeyAutoExitAfterExecution = "AutoExitAfterExecution";
 
     /// <summary>终端类型设置项的存储键名。</summary>

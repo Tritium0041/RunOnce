@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: Static/Text.cs
- * @date: 2026-02-11
+ * @date: 2026-03-04
  */
 
 #nullable enable
@@ -72,8 +72,8 @@ public static class Text
         ["执行代码前显示确认对话框"] = "Show confirmation dialog before executing code",
         ["执行前语言选择框"] = "Language Selector Before Execution",
         ["控制语言选择框的显示时机"] = "Control when the language selector is displayed",
-        ["执行后自动退出"] = "Auto Exit After Execution",
-        ["代码执行后自动关闭应用程序"] = "Automatically close the application after code execution",
+        ["执行时自动退出"] = "Auto Exit On Execute",
+        ["开始执行代码后自动关闭应用程序"] = "Automatically close the application when execution starts",
         ["终端类型"] = "Terminal Type",
         ["选择执行代码使用的终端程序"] = "Choose the terminal program for code execution",
         ["高级设置"] = "Advanced Settings",
