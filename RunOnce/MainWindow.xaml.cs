@@ -4,19 +4,22 @@
  * 
  * @author: WaterRun
  * @file: MainWindow.xaml.cs
- * @date: 2026-02-11
+ * @date: 2026-03-05
  */
 
 #nullable enable
-
-using System;
-using System.Runtime.InteropServices;
+using Microsoft.UI;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Animation;
 using RunOnce.Static;
 using RunOnce.View;
+using System;
+using System.IO;
+using System.Runtime.InteropServices;
 using WinRT;
+using WinRT.Interop;
 
 namespace RunOnce;
 
@@ -74,13 +77,14 @@ public sealed partial class MainWindow : Window
     /// 初始化主窗口实例。
     /// </summary>
     /// <remarks>
-    /// 执行顺序：初始化组件 → 设置窗口尺寸限制 → 配置标题栏 → 导航到编辑器页面。
+    /// 执行顺序：初始化组件 → 设置窗口尺寸限制 → 设置窗口图标 → 配置标题栏 → 导航到编辑器页面。
     /// </remarks>
     public MainWindow()
     {
         InitializeComponent();
 
         InitializeWindowMinSize();
+        TrySetWindowIcon();
         ConfigureTitleBar();
         UpdateLocalizedTexts();
 
@@ -102,6 +106,33 @@ public sealed partial class MainWindow : Window
         _hWnd = this.As<IWindowNative>().WindowHandle;
         _wndProcDelegate = new WndProcDelegate(WindowProc);
         _oldWndProc = SetWindowLong(_hWnd, GwlpWndProc, Marshal.GetFunctionPointerForDelegate(_wndProcDelegate));
+    }
+
+    /// <summary>
+    /// 尝试设置窗口图标（标题栏/任务栏）。
+    /// </summary>
+    /// <remarks>
+    /// 图标路径为输出目录下的 Assets\logo.ico。
+    /// 若图标不存在或平台不支持，则静默忽略。
+    /// </remarks>
+    private void TrySetWindowIcon()
+    {
+        try
+        {
+            IntPtr hwnd = _hWnd != IntPtr.Zero ? _hWnd : this.As<IWindowNative>().WindowHandle;
+            var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
+            AppWindow appWindow = AppWindow.GetFromWindowId(windowId);
+
+            string iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "logo.ico");
+            if (File.Exists(iconPath))
+            {
+                appWindow.SetIcon(iconPath);
+            }
+        }
+        catch
+        {
+            // 可选：记录日志
+        }
     }
 
     /// <summary>
@@ -163,7 +194,9 @@ public sealed partial class MainWindow : Window
     /// </summary>
     private void UpdateLocalizedTexts()
     {
-        AppTitleTextBlock.Text = Text.Localize("一次运行");
+        string appName = Text.Localize("一次运行");
+        Title = appName;
+        AppTitleTextBlock.Text = appName;
         ToolTipService.SetToolTip(RunButton, $"{Text.Localize("运行")} (Ctrl+Enter)");
     }
 

@@ -10,12 +10,12 @@
   <Identity
     Name="e126083a-31bb-4921-9f37-851c15d629e7"
     Publisher="CN=linzh"
-    Version="1.0.0.0" />
+    Version="0.1.0.0" />
 
-  <mp:PhoneIdentity PhoneProductId="e126083a-31bb-4921-9f37-851c15d629e7" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+  <mp:PhoneIdentity PhoneProductId="e126083a-31bb-4921-9f37-851c15d629e7" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
 
   <Properties>
-    <DisplayName>RunOnce</DisplayName>
+    <DisplayName>ms-resource:AppDisplayName</DisplayName>
     <PublisherDisplayName>linzh</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
@@ -26,15 +26,16 @@
   </Dependencies>
 
   <Resources>
-    <Resource Language="x-generate"/>
+    <Resource Language="x-generate" />
   </Resources>
 
   <Applications>
-    <Application Id="App"
+    <Application
+      Id="App"
       Executable="$targetnametoken$.exe"
       EntryPoint="$targetentrypoint$">
       <uap:VisualElements
-        DisplayName="RunOnce"
+        DisplayName="ms-resource:AppDisplayName"
         Description="RunOnce"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"

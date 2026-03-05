@@ -1,0 +1,46 @@
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build output
+[Bb]in/
+[Oo]bj/
+[Dd]ebug*/
+[Rr]elease*/
+x64/
+x86/
+ARM64/
+ipch/
+
+# VC++ database/cache
+*.VC.db
+*.VC.opendb
+*.aps
+*.ncb
+*.sdf
+*.ipdb
+*.iobj
+*.ilk
+*.pdb
+*.idb
+*.tlog
+*.lastbuildstate
+
+# Test/coverage
+TestResults/
+*.coverage
+*.coveragexml
+
+# Logs/temp
+*.log
+*.tmp
+*.cache
+
+# CMake (if later enabled)
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
