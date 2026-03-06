@@ -8,6 +8,7 @@
     <Platform Solution="*|ARM64" Project="x64" />
   </Project>
   <Project Path="RunOnce.csproj">
+    <BuildDependency Project="../ShellExt/ShellExt.vcxproj" />
     <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />
     <Platform Solution="*|x86" Project="x86" />

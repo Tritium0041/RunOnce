@@ -1,13 +1,34 @@
-﻿// pch.h: 这是预编译标头文件。
-// 下方列出的文件仅编译一次，提高了将来生成的生成性能。
-// 这还将影响 IntelliSense 性能，包括代码完成和许多代码浏览功能。
-// 但是，如果此处列出的文件中的任何一个在生成之间有更新，它们全部都将被重新编译。
-// 请勿在此处添加要频繁更新的文件，这将使得性能优势无效。
+﻿/*
+ * 预编译头文件
+ * 集中引入 Shell Extension 所需的全部 Windows SDK 头文件
+ *
+ * @file: pch.h
+ * @date: 2026-03-06
+ */
 
-#ifndef PCH_H
-#define PCH_H
+#pragma once
 
-// 添加要在此处预编译的标头
 #include "framework.h"
 
-#endif //PCH_H
+ // Shell 接口：IExplorerCommand、IShellItem、IShellItemArray 等
+#include <shobjidl_core.h>
+
+// Shell 辅助函数：SHStrDupW、PathRemoveFileSpecW、PathAppendW 等
+#include <shlwapi.h>
+
+// 安全字符串操作：StringCchCopyW、StringCchPrintfW 等
+#include <strsafe.h>
+
+// Shell 执行：SHELLEXECUTEINFOW、ShellExecuteExW
+#include <shellapi.h>
+
+// WRL（Windows Runtime C++ Template Library）
+#include <wrl/module.h>
+#include <wrl/implements.h>
+#include <wrl/client.h>
+
+// 链接 Shell 辅助函数库
+#pragma comment(lib, "shlwapi.lib")
+
+// 链接 Windows Runtime 基础库（提供 RoOriginateError 等 WRL 内部依赖的符号）
+#pragma comment(lib, "runtimeobject.lib")

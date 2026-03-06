@@ -18,10 +18,14 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <_ShellExtPlatform Condition="'$(Platform)' == 'x86'">Win32</_ShellExtPlatform>
+    <_ShellExtPlatform Condition="'$(Platform)' != 'x86'">$(Platform)</_ShellExtPlatform>
+    <_ShellExtDll>..\ShellExt\bin\$(_ShellExtPlatform)\$(Configuration)\ShellExt.dll</_ShellExtDll>
+  </PropertyGroup>
+
   <ItemGroup>
     <None Remove=".gitignore" />
-    <None Remove="README-en.md" />
-    <None Remove="README.md" />
     <None Remove="View\Editor.xaml" />
     <None Remove="View\Settings.xaml" />
   </ItemGroup>
@@ -36,6 +40,11 @@
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
     <Content Include="Assets\logo.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+
+    <Content Include="$(_ShellExtDll)" Condition="Exists('$(_ShellExtDll)')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>ShellExt.dll</Link>
     </Content>
   </ItemGroup>
 
