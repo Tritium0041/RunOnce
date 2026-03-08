@@ -1,10 +1,10 @@
 ﻿/*
  * 脚本执行管理
  * 提供在指定目录生成临时脚本文件并通过终端执行的功能，执行完成后自动清理临时文件
- * 
+ *
  * @author: WaterRun
  * @file: Static/Exec.cs
- * @date: 2026-01-30
+ * @date: 2026-03-08
  */
 
 #nullable enable
@@ -13,6 +13,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace RunOnce.Static;
@@ -30,25 +31,26 @@ public static class Exec
     /// <summary>
     /// 语言标识符到文件扩展名的映射字典，键为小写语言标识符，值为包含点号的扩展名。
     /// </summary>
+    /// <remarks>
+    /// 仅包含 <see cref="Config.SupportedLanguages"/> 中定义的语言，保证与执行指令配置的一致性。
+    /// </remarks>
     private static readonly Dictionary<string, string> _languageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ["bat"] = ".bat",
         ["powershell"] = ".ps1",
-        ["pwsh"] = ".ps1",
         ["python"] = ".py",
         ["lua"] = ".lua",
         ["nim"] = ".nim",
-        ["php"] = ".php",
-        ["javascript"] = ".js",
-        ["typescript"] = ".ts",
         ["go"] = ".go",
-        ["vbscript"] = ".vbs",
     };
 
     /// <summary>
     /// 获取指定语言对应的文件扩展名。
     /// </summary>
-    /// <param name="language">脚本语言标识符，必须是 Config.SupportedLanguages 中定义的有效值，不区分大小写，不允许为 null 或空白字符串。</param>
+    /// <param name="language">
+    /// 脚本语言标识符，必须是 <see cref="Config.SupportedLanguages"/> 中定义的有效值，不区分大小写。
+    /// 不允许为 null 或空白字符串。
+    /// </param>
     /// <returns>该语言对应的文件扩展名，包含前导点号（如 ".py"）。</returns>
     /// <exception cref="ArgumentNullException">当 language 为 null 时抛出。</exception>
     /// <exception cref="ArgumentException">当 language 为空白字符串或不在支持列表中时抛出。</exception>
@@ -72,7 +74,7 @@ public static class Exec
     /// <summary>
     /// 获取所有支持语言的文件扩展名映射副本。
     /// </summary>
-    /// <returns>包含所有语言标识符及其对应文件扩展名的字典副本。</returns>
+    /// <returns>包含所有 <see cref="Config.SupportedLanguages"/> 中语言及其对应文件扩展名的字典副本。</returns>
     /// <remarks>
     /// 返回的是映射数据的深拷贝，修改返回值不会影响内部存储。
     /// </remarks>
@@ -85,7 +87,10 @@ public static class Exec
     /// 在指定工作目录生成临时脚本文件，启动终端执行脚本，执行完成后自动清理临时文件。
     /// </summary>
     /// <param name="code">要执行的脚本代码内容，不允许为 null 或空字符串。</param>
-    /// <param name="language">脚本语言标识符，必须是 Config.SupportedLanguages 中定义的有效值，不区分大小写，不允许为 null 或空白字符串。</param>
+    /// <param name="language">
+    /// 脚本语言标识符，必须是 <see cref="Config.SupportedLanguages"/> 中定义的有效值，不区分大小写。
+    /// 不允许为 null 或空白字符串。
+    /// </param>
     /// <param name="workingDirectory">脚本执行的工作目录路径，临时文件将在此目录生成，不允许为 null 或空白字符串，目录必须存在。</param>
     /// <exception cref="ArgumentNullException">当 code、language 或 workingDirectory 为 null 时抛出。</exception>
     /// <exception cref="ArgumentException">当参数为空白字符串、language 不在支持列表中、或工作目录不存在时抛出。</exception>
@@ -205,7 +210,7 @@ public static class Exec
         {
             TerminalType.WindowsTerminal => CreateWindowsTerminalStartInfo(command, workingDirectory),
             TerminalType.Cmd => CreateCmdStartInfo(command, workingDirectory),
-            _ => CreateWindowsTerminalStartInfo(command, workingDirectory)
+            _ => CreateWindowsTerminalStartInfo(command, workingDirectory),
         };
 
         try
@@ -223,7 +228,7 @@ public static class Exec
     /// </summary>
     /// <param name="command">要执行的命令。</param>
     /// <param name="workingDirectory">工作目录路径。</param>
-    /// <returns>配置完成的 ProcessStartInfo 实例。</returns>
+    /// <returns>配置完成的 <see cref="ProcessStartInfo"/> 实例。</returns>
     private static ProcessStartInfo CreateWindowsTerminalStartInfo(string command, string workingDirectory)
     {
         string escapedCommand = command.Replace("\"", "\\\"");
@@ -242,7 +247,7 @@ public static class Exec
     /// </summary>
     /// <param name="command">要执行的命令。</param>
     /// <param name="workingDirectory">工作目录路径。</param>
-    /// <returns>配置完成的 ProcessStartInfo 实例。</returns>
+    /// <returns>配置完成的 <see cref="ProcessStartInfo"/> 实例。</returns>
     private static ProcessStartInfo CreateCmdStartInfo(string command, string workingDirectory)
     {
         return new ProcessStartInfo

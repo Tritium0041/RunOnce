@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: Static/Config.cs
- * @date: 2026-03-04
+ * @date: 2026-03-08
  */
 
 #nullable enable
@@ -192,7 +192,7 @@ public static class Config
     private const string DefaultTempFilePrefix = "__RunOnceTMP__";
 
     /// <summary>置信度阈值的默认值。</summary>
-    public const double DefaultConfidenceThreshold = 0.75;
+    public const double DefaultConfidenceThreshold = 0.50;
 
     #endregion
 
@@ -417,7 +417,7 @@ public static class Config
     /// 获取或设置语言识别的置信度阈值。
     /// </summary>
     /// <value>
-    /// 范围 [0.0, 1.0]，默认为 0.75。
+    /// 范围 [0.0, 1.0]，默认为 0.50。
     /// 高于此值判定为可信，低于此值判定为不可信。
     /// 若存储中的值超出有效范围则回退为默认值。
     /// </value>
@@ -707,6 +707,7 @@ public static class Config
             }
             catch (JsonException)
             {
+                // CFG-001: 配置数据损坏时回退到默认值，保证应用可正常启动
             }
         }
 

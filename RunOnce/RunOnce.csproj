@@ -82,4 +82,16 @@
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
   </PropertyGroup>
+
+  <Target Name="CopyShellExtToAppx" AfterTargets="Build;_GenerateAppxPackage">
+    <PropertyGroup>
+      <_AppxDir>$(OutDir)AppX\</_AppxDir>
+    </PropertyGroup>
+    <Copy SourceFiles="$(OutDir)ShellExt.dll"
+          DestinationFolder="$(_AppxDir)"
+          Condition="Exists('$(OutDir)ShellExt.dll') and Exists('$(_AppxDir)')"
+          SkipUnchangedFiles="true" />
+    <Message Text="ShellExt.dll → AppX\" Importance="High"
+             Condition="Exists('$(OutDir)ShellExt.dll') and Exists('$(_AppxDir)')" />
+  </Target>
 </Project>

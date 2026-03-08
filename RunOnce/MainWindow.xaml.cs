@@ -1,10 +1,10 @@
 /*
  * 应用程序主窗口
  * 提供沉浸式标题栏、页面导航框架、窗口尺寸管理及运行按钮
- * 
+ *
  * @author: WaterRun
  * @file: MainWindow.xaml.cs
- * @date: 2026-03-05
+ * @date: 2026-03-08
  */
 
 #nullable enable
@@ -113,7 +113,7 @@ public sealed partial class MainWindow : Window
     /// </summary>
     /// <remarks>
     /// 图标路径为输出目录下的 Assets\logo.ico。
-    /// 若图标不存在或平台不支持，则静默忽略。
+    /// 若图标不存在或平台接口不可用，则静默忽略以保证窗口正常显示。
     /// </remarks>
     private void TrySetWindowIcon()
     {
@@ -129,9 +129,9 @@ public sealed partial class MainWindow : Window
                 appWindow.SetIcon(iconPath);
             }
         }
-        catch
+        catch (Exception ex) when (ex is COMException or FileNotFoundException or InvalidOperationException)
         {
-            // 可选：记录日志
+            // ICO-001: 图标设置为非关键功能，平台不支持或文件缺失时允许静默跳过
         }
     }
 
@@ -343,6 +343,10 @@ public sealed partial class MainWindow : Window
     /// <summary>
     /// 设置窗口长整型属性。
     /// </summary>
+    /// <param name="hWnd">窗口句柄。</param>
+    /// <param name="nIndex">属性索引。</param>
+    /// <param name="dwNewLong">新属性值。</param>
+    /// <returns>先前的属性值。</returns>
     private static IntPtr SetWindowLong(IntPtr hWnd, int nIndex, IntPtr dwNewLong)
     {
         return IntPtr.Size == 8
@@ -351,18 +355,34 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>32 位 SetWindowLong 函数。</summary>
+    /// <param name="hWnd">窗口句柄。</param>
+    /// <param name="nIndex">属性索引。</param>
+    /// <param name="dwNewLong">新属性值。</param>
+    /// <returns>先前的属性值。</returns>
     [DllImport("user32.dll", EntryPoint = "SetWindowLong", SetLastError = true)]
     private static extern int SetWindowLong32(IntPtr hWnd, int nIndex, int dwNewLong);
 
     /// <summary>64 位 SetWindowLongPtr 函数。</summary>
+    /// <param name="hWnd">窗口句柄。</param>
+    /// <param name="nIndex">属性索引。</param>
+    /// <param name="dwNewLong">新属性值。</param>
+    /// <returns>先前的属性值。</returns>
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr", SetLastError = true)]
     private static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 
     /// <summary>调用原始窗口过程。</summary>
+    /// <param name="lpPrevWndFunc">原始窗口过程指针。</param>
+    /// <param name="hWnd">窗口句柄。</param>
+    /// <param name="msg">消息标识符。</param>
+    /// <param name="wParam">消息参数。</param>
+    /// <param name="lParam">消息参数。</param>
+    /// <returns>消息处理结果。</returns>
     [DllImport("user32.dll")]
     private static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
     /// <summary>获取窗口 DPI 值。</summary>
+    /// <param name="hwnd">窗口句柄。</param>
+    /// <returns>窗口 DPI 值。</returns>
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
 

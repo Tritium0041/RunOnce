@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: ViewModel/Editor.cs
- * @date: 2026-02-11
+ * @date: 2026-03-08
  */
 
 #nullable enable
@@ -12,6 +12,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using RunOnce.Static;
@@ -61,6 +62,11 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 属性值变更时触发的事件。
     /// </summary>
+    /// <remarks>
+    /// 触发时机：调用 <see cref="SetProperty{T}"/> 且新旧值不相等时，或显式调用 <see cref="OnPropertyChanged"/>。
+    /// 线程上下文：在调用线程触发，通常为 UI 线程。
+    /// 订阅/取消订阅：无特殊注意事项。
+    /// </remarks>
     public event PropertyChangedEventHandler? PropertyChanged;
 
     #region 光标位置属性
@@ -68,6 +74,7 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 获取当前光标所在行号（从 1 开始）。
     /// </summary>
+    /// <value>非负整数，默认为 1，只读对外。</value>
     public int CurrentLine
     {
         get => _currentLine;
@@ -77,6 +84,7 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 获取当前光标所在列号（从 1 开始）。
     /// </summary>
+    /// <value>非负整数，默认为 1，只读对外。</value>
     public int CurrentColumn
     {
         get => _currentColumn;
@@ -86,7 +94,7 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 获取本地化的光标位置显示文本。
     /// </summary>
-    /// <value>格式为 "Ln {行}, Col {列}" 或对应中文。</value>
+    /// <value>格式为 "Ln {行}, Col {列}" 或对应中文，根据当前语言设置决定。</value>
     public string PositionDisplay => $"{Text.Localize("行")} {_currentLine}, {Text.Localize("列")} {_currentColumn}";
 
     #endregion
@@ -127,21 +135,27 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 获取自动检测的最高置信度。
     /// </summary>
+    /// <value>范围 [0.0, 1.0]，0 表示未检测到。</value>
     public double DetectedConfidence => _detectedConfidence;
 
     /// <summary>
     /// 获取所有语言的检测结果列表。
     /// </summary>
+    /// <value>按置信度降序排列的结果列表，不为 null。</value>
     public IReadOnlyList<DetectionResult> DetectionResults => _detectionResults;
 
     /// <summary>
     /// 获取当前检测结果是否达到可信标准。
     /// </summary>
+    /// <value>true 表示置信度大于等于 <see cref="Config.ConfidenceThreshold"/>。</value>
     public bool IsConfident => _detectedConfidence >= Config.ConfidenceThreshold;
 
     /// <summary>
     /// 根据配置判断执行前是否应显示语言选择框。
     /// </summary>
+    /// <value>
+    /// AlwaysShow 模式下始终为 true；AutoHide 模式下当不可信或语言为空时为 true。
+    /// </value>
     public bool ShouldShowLanguageSelector => Config.SelectorMode switch
     {
         LanguageSelectorMode.AlwaysShow => true,
@@ -152,7 +166,7 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 获取或设置用户手动指定的语言标识符。
     /// </summary>
-    /// <value>为 null 表示使用自动检测结果。</value>
+    /// <value>为 null 表示使用自动检测结果；非 null 时必须是有效的语言标识符。</value>
     public string? ManualLanguage
     {
         get => _manualLanguage;
@@ -173,7 +187,7 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 获取或设置脚本执行的工作目录。
     /// </summary>
-    /// <value>默认为当前进程的工作目录。</value>
+    /// <value>默认为当前进程的工作目录，不为 null。</value>
     public string WorkingDirectory { get; set; } = Environment.CurrentDirectory;
 
     #endregion
@@ -183,8 +197,8 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 根据文本和字符偏移量更新光标行列信息。
     /// </summary>
-    /// <param name="text">RichEditBox 中的原始文本（\r 作为换行符）。</param>
-    /// <param name="charIndex">光标的字符偏移量。</param>
+    /// <param name="text">RichEditBox 中的原始文本（\r 作为换行符），允许为 null 或空。</param>
+    /// <param name="charIndex">光标的字符偏移量，允许为负数（将视为无效并重置为初始位置）。</param>
     public void UpdateCursorPosition(string text, int charIndex)
     {
         if (string.IsNullOrEmpty(text) || charIndex < 0)
@@ -220,7 +234,7 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 对代码执行语言检测并更新所有相关属性。
     /// </summary>
-    /// <param name="code">待检测的代码文本。</param>
+    /// <param name="code">待检测的代码文本，允许为 null 或空。</param>
     public void RunDetection(string code)
     {
         _detectionResults = LanguageDetector.Detect(code);
@@ -248,13 +262,17 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 执行代码脚本。
     /// </summary>
-    /// <param name="code">待执行的代码文本。</param>
-    /// <param name="language">目标语言标识符。</param>
-    /// <exception cref="ArgumentException">当参数无效时抛出。</exception>
+    /// <param name="code">待执行的代码文本，不允许为 null。</param>
+    /// <param name="language">目标语言标识符，不允许为 null 或空字符串。</param>
+    /// <exception cref="ArgumentNullException">当 code 或 language 为 null 时抛出。</exception>
+    /// <exception cref="ArgumentException">当参数为空白字符串或语言不在支持列表中时抛出。</exception>
     /// <exception cref="IOException">当临时文件创建失败时抛出。</exception>
     /// <exception cref="InvalidOperationException">当终端启动失败时抛出。</exception>
     public void Execute(string code, string language)
     {
+        ArgumentNullException.ThrowIfNull(code);
+        ArgumentNullException.ThrowIfNull(language);
+
         if (string.IsNullOrWhiteSpace(code) || string.IsNullOrEmpty(language))
         {
             return;
