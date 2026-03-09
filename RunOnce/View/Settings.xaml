@@ -45,7 +45,6 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- 居中品牌信息 -->
             <StackPanel
                 Grid.Row="0"
                 HorizontalAlignment="Center"
@@ -104,7 +103,6 @@
                     Click="StoreLink_Click"/>
             </StackPanel>
 
-            <!-- 重置链接 -->
             <HyperlinkButton
                 x:Name="WideResetLink"
                 Grid.Row="1"
@@ -122,7 +120,6 @@
                 Spacing="2"
                 HorizontalAlignment="Stretch">
 
-                <!-- 页面标题 -->
                 <TextBlock
                     x:Name="PageTitle"
                     Style="{ThemeResource TitleTextBlockStyle}"
@@ -237,7 +234,7 @@
                         SelectedIndex="{x:Bind ViewModel.SelectedSelectorModeIndex, Mode=TwoWay}"/>
                 </Grid>
 
-                <!-- 执行后自动退出 -->
+                <!-- 执行时自动退出 -->
                 <Grid
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -259,7 +256,7 @@
                         OnContent="{x:Null}"
                         OffContent="{x:Null}"
                         MinWidth="0"
-                        IsOn="{x:Bind ViewModel.AutoExitAfterExecution, Mode=TwoWay}"/>
+                        IsOn="{x:Bind ViewModel.AutoExitOnExecution, Mode=TwoWay}"/>
                 </Grid>
 
                 <!-- 终端类型 -->
@@ -284,6 +281,30 @@
                         VerticalAlignment="Center"
                         ItemsSource="{x:Bind ViewModel.TerminalOptions}"
                         SelectedIndex="{x:Bind ViewModel.SelectedTerminalIndex, Mode=TwoWay}"/>
+                </Grid>
+
+                <!-- 运行环境 -->
+                <Grid
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1,0,1,1"
+                    CornerRadius="0"
+                    Padding="16,12,16,12"
+                    MinHeight="60">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock x:Name="ShellLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
+                        <TextBlock x:Name="ShellDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ComboBox
+                        Grid.Column="1"
+                        MinWidth="180"
+                        VerticalAlignment="Center"
+                        ItemsSource="{x:Bind ViewModel.ShellOptions}"
+                        SelectedIndex="{x:Bind ViewModel.SelectedShellIndex, Mode=TwoWay}"/>
                 </Grid>
 
                 <!-- 快捷键 -->
@@ -340,7 +361,6 @@
                         Style="{ThemeResource BodyStrongTextBlockStyle}"
                         Margin="0,20,0,4"/>
 
-                    <!-- 软件名 -->
                     <Grid
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -356,7 +376,6 @@
                         <TextBlock Text="{x:Bind ViewModel.AppName, Mode=OneWay}" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                     </Grid>
 
-                    <!-- 版本 -->
                     <Grid
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -372,7 +391,6 @@
                         <TextBlock Text="{x:Bind ViewModel.Version}" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                     </Grid>
 
-                    <!-- 编译于 -->
                     <Grid
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -388,7 +406,6 @@
                         <TextBlock Text="{x:Bind ViewModel.BuildTimeText}" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                     </Grid>
 
-                    <!-- 作者 -->
                     <Grid
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -404,7 +421,6 @@
                         <TextBlock Text="{x:Bind ViewModel.Author}" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
                     </Grid>
 
-                    <!-- GitHub -->
                     <Grid
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -425,7 +441,6 @@
                             Click="GitHubLink_Click"/>
                     </Grid>
 
-                    <!-- 微软商店 -->
                     <Grid
                         x:Name="NarrowStoreRow"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
@@ -447,7 +462,6 @@
                             Click="StoreLink_Click"/>
                     </Grid>
 
-                    <!-- 重置所有设置 -->
                     <Grid
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
                         BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -469,3 +483,4 @@
         </ScrollViewer>
     </Grid>
 </Page>
+    

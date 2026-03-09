@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: View/Settings.xaml.cs
- * @date: 2026-03-04
+ * @date: 2026-03-09
  */
 
 #nullable enable
@@ -34,7 +34,6 @@ public sealed partial class Settings : Page
     /// <summary>
     /// 设置页面的 ViewModel 实例，承载所有可绑定状态与业务逻辑。
     /// </summary>
-    /// <value>在构造函数中创建，不为 null，生命周期与页面一致。</value>
     public SettingsViewModel ViewModel { get; }
 
     /// <summary>
@@ -52,7 +51,7 @@ public sealed partial class Settings : Page
     /// <summary>
     /// 处理页面加载完成事件，执行初始化显示逻辑。
     /// </summary>
-    /// <param name="sender">事件源对象，预期为当前页面实例。</param>
+    /// <param name="sender">事件源对象。</param>
     /// <param name="e">路由事件参数。</param>
     private void HandlePageLoaded(object sender, RoutedEventArgs e)
     {
@@ -110,7 +109,9 @@ public sealed partial class Settings : Page
         AutoExitLabel.Text = Text.Localize("执行时自动退出");
         AutoExitDescription.Text = Text.Localize("开始执行代码后自动关闭应用程序");
         TerminalLabel.Text = Text.Localize("终端类型");
-        TerminalDescription.Text = Text.Localize("选择执行代码使用的终端程序");
+        TerminalDescription.Text = Text.Localize("选择启动的终端模拟器");
+        ShellLabel.Text = Text.Localize("运行环境");
+        ShellDescription.Text = Text.Localize("选择执行代码使用的命令解释器");
         ShortcutsLabel.Text = Text.Localize("快捷键");
         ShortcutsDescription.Text = Text.Localize("查看应用程序支持的快捷键");
         ShortcutsButton.Content = Text.Localize("查看");

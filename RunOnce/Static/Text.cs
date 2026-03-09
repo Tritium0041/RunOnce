@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: Static/Text.cs
- * @date: 2026-03-04
+ * @date: 2026-03-09
  */
 
 #nullable enable
@@ -75,7 +75,9 @@ public static class Text
         ["执行时自动退出"] = "Auto Exit On Execute",
         ["开始执行代码后自动关闭应用程序"] = "Automatically close the application when execution starts",
         ["终端类型"] = "Terminal Type",
-        ["选择执行代码使用的终端程序"] = "Choose the terminal program for code execution",
+        ["选择启动的终端模拟器"] = "Choose the terminal emulator to launch",
+        ["运行环境"] = "Shell",
+        ["选择执行代码使用的命令解释器"] = "Choose the shell for code execution",
         ["高级设置"] = "Advanced Settings",
         ["配置临时文件、置信度阈值和语言命令"] = "Configure the temporary file, confidence threshold, and language commands",
         ["打开"] = "Open",
@@ -124,6 +126,9 @@ public static class Text
         ["确定"] = "OK",
         ["执行"] = "Execute",
         ["确定要执行此代码吗？"] = "Are you sure you want to execute this code?",
+
+        // 终端执行提示
+        ["按 Enter 键退出"] = "Press Enter to exit",
 
         // Config.cs 中的错误消息
         ["置信度阈值必须在 [0.0, 1.0] 范围内。"] = "Confidence threshold must be in the range [0.0, 1.0].",
@@ -212,7 +217,6 @@ public static class Text
     /// 获取当前实际使用的显示语言。
     /// </summary>
     /// <returns>返回实际生效的语言：当设置为 FollowSystem 时返回系统检测结果，否则返回用户设置值。</returns>
-    /// <remarks>此方法用于需要明确知道当前使用何种语言的场景，例如日志记录或调试。</remarks>
     public static DisplayLanguage GetEffectiveLanguage()
     {
         DisplayLanguage language = Config.Language;
@@ -227,7 +231,6 @@ public static class Text
     /// <param name="chinese">待检查的中文原文，不允许为 null。</param>
     /// <returns>若存在英文翻译则返回 true，否则返回 false。</returns>
     /// <exception cref="ArgumentNullException">当 chinese 为 null 时抛出。</exception>
-    /// <remarks>此方法用于开发期间检查翻译覆盖率，生产环境中不建议频繁调用。</remarks>
     public static bool HasTranslation(string chinese)
     {
         ArgumentNullException.ThrowIfNull(chinese);

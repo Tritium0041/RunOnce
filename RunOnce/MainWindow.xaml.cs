@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: MainWindow.xaml.cs
- * @date: 2026-03-08
+ * @date: 2026-03-09
  */
 
 #nullable enable
@@ -29,7 +29,7 @@ namespace RunOnce;
 /// <remarks>
 /// 不变量：窗口创建后必须导航到编辑器页面；标题栏区域已注册为可拖拽区域。
 /// 线程安全：所有成员必须在 UI 线程访问。
-/// 副作用：构造时设置窗口尺寸、配置标题栏、执行初始导航。
+/// 副作用：构造时设置窗口尺寸、配置标题栏、执行初始导航、清理残留临时文件。
 /// </remarks>
 public sealed partial class MainWindow : Window
 {
@@ -77,7 +77,8 @@ public sealed partial class MainWindow : Window
     /// 初始化主窗口实例。
     /// </summary>
     /// <remarks>
-    /// 执行顺序：初始化组件 → 设置窗口尺寸限制 → 设置窗口图标 → 配置标题栏 → 导航到编辑器页面。
+    /// 执行顺序：初始化组件 → 设置窗口尺寸限制 → 设置窗口图标 → 配置标题栏
+    /// → 导航到编辑器页面 → 清理残留临时文件。
     /// </remarks>
     public MainWindow()
     {
@@ -93,6 +94,8 @@ public sealed partial class MainWindow : Window
         UpdateTitleBarButtons();
 
         Closed += OnWindowClosed;
+
+        Exec.CleanupStaleTempFiles();
     }
 
     /// <summary>
@@ -355,34 +358,18 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>32 位 SetWindowLong 函数。</summary>
-    /// <param name="hWnd">窗口句柄。</param>
-    /// <param name="nIndex">属性索引。</param>
-    /// <param name="dwNewLong">新属性值。</param>
-    /// <returns>先前的属性值。</returns>
     [DllImport("user32.dll", EntryPoint = "SetWindowLong", SetLastError = true)]
     private static extern int SetWindowLong32(IntPtr hWnd, int nIndex, int dwNewLong);
 
     /// <summary>64 位 SetWindowLongPtr 函数。</summary>
-    /// <param name="hWnd">窗口句柄。</param>
-    /// <param name="nIndex">属性索引。</param>
-    /// <param name="dwNewLong">新属性值。</param>
-    /// <returns>先前的属性值。</returns>
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtr", SetLastError = true)]
     private static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
 
     /// <summary>调用原始窗口过程。</summary>
-    /// <param name="lpPrevWndFunc">原始窗口过程指针。</param>
-    /// <param name="hWnd">窗口句柄。</param>
-    /// <param name="msg">消息标识符。</param>
-    /// <param name="wParam">消息参数。</param>
-    /// <param name="lParam">消息参数。</param>
-    /// <returns>消息处理结果。</returns>
     [DllImport("user32.dll")]
     private static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
     /// <summary>获取窗口 DPI 值。</summary>
-    /// <param name="hwnd">窗口句柄。</param>
-    /// <returns>窗口 DPI 值。</returns>
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
 

@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: Static/Config.cs
- * @date: 2026-03-08
+ * @date: 2026-03-09
  */
 
 #nullable enable
@@ -60,15 +60,36 @@ public enum LanguageSelectorMode
 }
 
 /// <summary>
-/// 终端类型枚举，定义执行脚本时使用的终端程序。
+/// 终端类型枚举，定义执行脚本时使用的终端模拟器程序。
 /// </summary>
 public enum TerminalType
 {
     /// <summary>Windows Terminal（wt.exe），现代终端体验。</summary>
     WindowsTerminal,
 
-    /// <summary>传统命令提示符（cmd.exe）。</summary>
+    /// <summary>传统命令提示符窗口。</summary>
     Cmd,
+}
+
+/// <summary>
+/// 命令解释器类型枚举，定义执行脚本时使用的 Shell 环境。
+/// </summary>
+public enum ShellType
+{
+    /// <summary>PowerShell 5.x（powershell.exe），系统默认编码。</summary>
+    PowerShell,
+
+    /// <summary>PowerShell 5.x（powershell.exe），强制 UTF-8 编码。</summary>
+    PowerShellUtf8,
+
+    /// <summary>PowerShell 7.x（pwsh.exe），原生 UTF-8。</summary>
+    Pwsh,
+
+    /// <summary>命令提示符（cmd.exe），系统默认编码。</summary>
+    Cmd,
+
+    /// <summary>命令提示符（cmd.exe），强制 UTF-8 编码。</summary>
+    CmdUtf8,
 }
 
 /// <summary>
@@ -179,10 +200,13 @@ public static class Config
     private const string KeyConfidenceThreshold = "ConfidenceThreshold";
 
     /// <summary>执行时自动退出开关设置项的存储键名。</summary>
-    private const string KeyAutoExitAfterExecution = "AutoExitAfterExecution";
+    private const string KeyAutoExitOnExecution = "AutoExitOnExecution";
 
     /// <summary>终端类型设置项的存储键名。</summary>
     private const string KeyTerminalType = "TerminalType";
+
+    /// <summary>命令解释器类型设置项的存储键名。</summary>
+    private const string KeyShellType = "ShellType";
 
     #endregion
 
@@ -347,19 +371,19 @@ public static class Config
     }
 
     /// <summary>
-    /// 获取或设置执行代码后是否自动退出应用程序。
+    /// 获取或设置开始执行代码时是否自动退出应用程序。
     /// </summary>
     /// <value>
-    /// 布尔值，true 表示执行后自动退出，false 表示保持运行。默认为 true（开启）。
+    /// 布尔值，true 表示执行时自动退出，false 表示保持运行。默认为 true（开启）。
     /// 设置时立即持久化到本地存储。
     /// </value>
-    public static bool AutoExitAfterExecution
+    public static bool AutoExitOnExecution
     {
         get
         {
             lock (_syncLock)
             {
-                return !_localSettings.Values.TryGetValue(KeyAutoExitAfterExecution, out object? value)
+                return !_localSettings.Values.TryGetValue(KeyAutoExitOnExecution, out object? value)
                        || value is not bool boolValue
                        || boolValue;
             }
@@ -368,13 +392,13 @@ public static class Config
         {
             lock (_syncLock)
             {
-                _localSettings.Values[KeyAutoExitAfterExecution] = value;
+                _localSettings.Values[KeyAutoExitOnExecution] = value;
             }
         }
     }
 
     /// <summary>
-    /// 获取或设置执行脚本时使用的终端类型。
+    /// 获取或设置执行脚本时使用的终端模拟器类型。
     /// </summary>
     /// <value>
     /// TerminalType 枚举值，默认为 WindowsTerminal（wt.exe）。
@@ -396,6 +420,35 @@ public static class Config
             lock (_syncLock)
             {
                 _localSettings.Values[KeyTerminalType] = (int)value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 获取或设置执行脚本时使用的命令解释器类型。
+    /// </summary>
+    /// <value>
+    /// ShellType 枚举值，默认为 PowerShell（powershell.exe 5.x）。
+    /// 设置时立即持久化到本地存储。
+    /// </value>
+    public static ShellType Shell
+    {
+        get
+        {
+            lock (_syncLock)
+            {
+                return _localSettings.Values.TryGetValue(KeyShellType, out object? value)
+                       && value is int intValue
+                       && Enum.IsDefined(typeof(ShellType), intValue)
+                    ? (ShellType)intValue
+                    : ShellType.PowerShell;
+            }
+        }
+        set
+        {
+            lock (_syncLock)
+            {
+                _localSettings.Values[KeyShellType] = (int)value;
             }
         }
     }
@@ -643,6 +696,21 @@ public static class Config
         _ => terminal.ToString(),
     };
 
+    /// <summary>
+    /// 获取命令解释器类型枚举值的本地化显示名称。
+    /// </summary>
+    /// <param name="shell">命令解释器类型枚举值。</param>
+    /// <returns>本地化后的显示名称字符串。</returns>
+    public static string GetShellDisplayName(ShellType shell) => shell switch
+    {
+        ShellType.PowerShell => "PowerShell",
+        ShellType.PowerShellUtf8 => "PowerShell (UTF-8)",
+        ShellType.Pwsh => "Pwsh (PowerShell 7)",
+        ShellType.Cmd => Text.Localize("命令提示符"),
+        ShellType.CmdUtf8 => Text.Localize("命令提示符") + " (UTF-8)",
+        _ => shell.ToString(),
+    };
+
     #endregion
 
     #region 重置方法
@@ -652,7 +720,7 @@ public static class Config
     /// </summary>
     /// <remarks>
     /// 包括主题风格、显示语言、临时文件前缀、语言选择框模式、执行确认开关、
-    /// 置信度阈值、执行后自动退出、终端类型以及所有语言执行指令。
+    /// 置信度阈值、执行时自动退出、终端类型、命令解释器类型以及所有语言执行指令。
     /// 重置后立即持久化到本地存储。
     /// </remarks>
     public static void ResetAllSettings()
@@ -665,8 +733,9 @@ public static class Config
             _localSettings.Values[KeyLanguageSelectorMode] = (int)LanguageSelectorMode.AutoHide;
             _localSettings.Values[KeyConfirmBeforeExecution] = false;
             _localSettings.Values[KeyConfidenceThreshold] = DefaultConfidenceThreshold;
-            _localSettings.Values[KeyAutoExitAfterExecution] = true;
+            _localSettings.Values[KeyAutoExitOnExecution] = true;
             _localSettings.Values[KeyTerminalType] = (int)TerminalType.WindowsTerminal;
+            _localSettings.Values[KeyShellType] = (int)ShellType.PowerShell;
             _languageCommands = CreateDefaultLanguageCommands();
             _languageCommandsLoaded = true;
             PersistLanguageCommands();

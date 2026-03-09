@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: View/Editor.xaml.cs
- * @date: 2026-03-02
+ * @date: 2026-03-09
  */
 
 #nullable enable
@@ -14,6 +14,7 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using RunOnce.Static;
 using RunOnce.ViewModel;
 using System;
@@ -36,7 +37,8 @@ namespace RunOnce.View;
 /// </summary>
 /// <remarks>
 /// 不变量：<see cref="ViewModel"/> 在构造时创建，生命周期与页面一致；
-/// 语法高亮通过 300ms 去抖定时器异步应用，不阻塞用户输入。
+/// 语法高亮通过 80ms 去抖定时器异步应用，不阻塞用户输入；
+/// 格式化操作前后保存并恢复 ScrollViewer 滚动位置，防止视口抖动。
 /// 线程安全：所有成员必须在 UI 线程访问。
 /// 副作用：高亮操作修改 RichEditBox 的字符格式；执行操作创建临时文件并启动终端进程。
 /// </remarks>
@@ -58,7 +60,7 @@ public sealed partial class Editor : Page
     private DispatcherQueueTimer? _updateTimer;
 
     /// <summary>
-    /// 标识当前是否正在应用字符格式，防止 SelectionChanged 回调干扰。
+    /// 标识当前是否正在应用字符格式，防止 SelectionChanged/TextChanged 回调干扰。
     /// </summary>
     private bool _isApplyingFormatting;
 
@@ -66,6 +68,11 @@ public sealed partial class Editor : Page
     /// 标识当前是否正在执行流程中，防止重入。
     /// </summary>
     private bool _isExecuting;
+
+    /// <summary>
+    /// RichEditBox 内部 ScrollViewer 的缓存引用，在页面加载时获取。
+    /// </summary>
+    private ScrollViewer? _scrollViewer;
 
     /// <summary>
     /// 初始化编辑器页面实例。
@@ -86,6 +93,7 @@ public sealed partial class Editor : Page
     private void OnPageLoaded(object sender, RoutedEventArgs e)
     {
         EnsureTimerInitialized();
+        CacheScrollViewer();
         InitializeWorkingDirectory();
         CodeEditor.Focus(FocusState.Programmatic);
     }
@@ -113,9 +121,48 @@ public sealed partial class Editor : Page
         }
 
         _updateTimer = DispatcherQueue.CreateTimer();
-        _updateTimer.Interval = TimeSpan.FromMilliseconds(300);
+        _updateTimer.Interval = TimeSpan.FromMilliseconds(80);
         _updateTimer.IsRepeating = false;
         _updateTimer.Tick += (_, _) => PerformDebouncedUpdate();
+    }
+
+    /// <summary>
+    /// 在 RichEditBox 的可视树中查找并缓存内部 ScrollViewer 引用。
+    /// </summary>
+    /// <remarks>
+    /// 必须在页面 Loaded 后调用，此时可视树已构建完成。
+    /// 缓存的 ScrollViewer 用于在格式化操作前后保存和恢复滚动位置。
+    /// </remarks>
+    private void CacheScrollViewer()
+    {
+        _scrollViewer = FindDescendant<ScrollViewer>(CodeEditor);
+    }
+
+    /// <summary>
+    /// 在可视树中递归查找指定类型的第一个后代元素。
+    /// </summary>
+    /// <typeparam name="T">要查找的元素类型。</typeparam>
+    /// <param name="parent">搜索起点的父元素。</param>
+    /// <returns>找到的第一个匹配元素；若未找到则返回 null。</returns>
+    private static T? FindDescendant<T>(DependencyObject parent) where T : DependencyObject
+    {
+        int childCount = VisualTreeHelper.GetChildrenCount(parent);
+        for (int i = 0; i < childCount; i++)
+        {
+            DependencyObject child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T target)
+            {
+                return target;
+            }
+
+            T? result = FindDescendant<T>(child);
+            if (result is not null)
+            {
+                return result;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -196,12 +243,28 @@ public sealed partial class Editor : Page
     #region 键盘处理
 
     /// <summary>
-    /// 处理编辑器的按键预览事件，拦截 Tab 键以实现缩进功能。
+    /// 处理编辑器的按键预览事件，拦截 Ctrl+Enter 和 Tab 键。
     /// </summary>
     /// <param name="sender">事件源对象。</param>
     /// <param name="e">按键路由事件参数。</param>
+    /// <remarks>
+    /// PreviewKeyDown 在 RichEditBox 自身处理按键之前触发，
+    /// 可以可靠拦截 Ctrl+Enter（阻止 RichEditBox 将其解释为段落换行）
+    /// 以及 Tab（实现自定义缩进功能）。
+    /// </remarks>
     private void CodeEditor_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
+        if (e.Key == VirtualKey.Enter)
+        {
+            CoreVirtualKeyStates ctrlState = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control);
+            if ((ctrlState & CoreVirtualKeyStates.Down) != 0)
+            {
+                e.Handled = true;
+                HandleExecuteRequest();
+                return;
+            }
+        }
+
         if (e.Key == VirtualKey.Tab)
         {
             e.Handled = true;
@@ -221,7 +284,7 @@ public sealed partial class Editor : Page
     }
 
     /// <summary>
-    /// 处理 Ctrl+Enter 快捷键，触发代码执行。
+    /// 处理 Ctrl+Enter 快捷键，触发代码执行（Page 级后备，当 RichEditBox 未聚焦时生效）。
     /// </summary>
     /// <param name="sender">快捷键加速器对象。</param>
     /// <param name="args">快捷键调用事件参数。</param>
@@ -270,6 +333,10 @@ public sealed partial class Editor : Page
     /// 对编辑器内容应用语法高亮着色。
     /// </summary>
     /// <param name="text">编辑器原始文本，若为 null 则从编辑器获取。</param>
+    /// <remarks>
+    /// 格式化操作前保存 ScrollViewer 的滚动位置和文本选区，
+    /// 操作完成后恢复，防止视口抖动。
+    /// </remarks>
     private void ApplyHighlighting(string? text = null)
     {
         text ??= GetPlainText();
@@ -279,6 +346,9 @@ public sealed partial class Editor : Page
         {
             return;
         }
+
+        double? savedVerticalOffset = _scrollViewer?.VerticalOffset;
+        double? savedHorizontalOffset = _scrollViewer?.HorizontalOffset;
 
         _isApplyingFormatting = true;
 
@@ -312,6 +382,11 @@ public sealed partial class Editor : Page
         finally
         {
             _isApplyingFormatting = false;
+        }
+
+        if (savedVerticalOffset.HasValue && savedHorizontalOffset.HasValue)
+        {
+            _scrollViewer?.ChangeView(savedHorizontalOffset.Value, savedVerticalOffset.Value, null, disableAnimation: true);
         }
     }
 
@@ -409,7 +484,7 @@ public sealed partial class Editor : Page
                 return;
             }
 
-            if (Config.AutoExitAfterExecution)
+            if (Config.AutoExitOnExecution)
             {
                 Application.Current.Exit();
             }

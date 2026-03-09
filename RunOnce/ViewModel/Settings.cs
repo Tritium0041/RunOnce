@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: ViewModel/Settings.cs
- * @date: 2026-02-10
+ * @date: 2026-03-09
  */
 
 #nullable enable
@@ -65,6 +65,11 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// </summary>
     private readonly ObservableCollection<string> _terminalOptions;
 
+    /// <summary>
+    /// 命令解释器类型 ComboBox 的显示选项列表。
+    /// </summary>
+    private readonly ObservableCollection<string> _shellOptions;
+
     #endregion
 
     #region 选中索引后备字段
@@ -89,6 +94,11 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// </summary>
     private int _selectedTerminalIndex;
 
+    /// <summary>
+    /// 当前选中的命令解释器类型索引。
+    /// </summary>
+    private int _selectedShellIndex;
+
     #endregion
 
     #region 开关后备字段
@@ -99,9 +109,9 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     private bool _confirmBeforeExecution;
 
     /// <summary>
-    /// 执行后自动退出开关状态。
+    /// 执行时自动退出开关状态。
     /// </summary>
-    private bool _autoExitAfterExecution;
+    private bool _autoExitOnExecution;
 
     #endregion
 
@@ -146,6 +156,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         _languageOptions = new(Enum.GetValues<DisplayLanguage>().Select(Config.GetLanguageDisplayName));
         _selectorModeOptions = new(Enum.GetValues<LanguageSelectorMode>().Select(Config.GetSelectorModeDisplayName));
         _terminalOptions = new(Enum.GetValues<TerminalType>().Select(Config.GetTerminalDisplayName));
+        _shellOptions = new(Enum.GetValues<ShellType>().Select(Config.GetShellDisplayName));
 
         _isSuppressingChanges = true;
         SynchronizeFromConfig();
@@ -157,26 +168,27 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// <summary>
     /// 主题风格 ComboBox 的本地化显示选项列表。
     /// </summary>
-    /// <value>包含所有 <see cref="ThemeStyle"/> 枚举值的本地化名称。语言切换时通过原地更新保持引用不变。</value>
     public ObservableCollection<string> ThemeOptions => _themeOptions;
 
     /// <summary>
     /// 显示语言 ComboBox 的本地化显示选项列表。
     /// </summary>
-    /// <value>包含所有 <see cref="DisplayLanguage"/> 枚举值的本地化名称。</value>
     public ObservableCollection<string> LanguageOptions => _languageOptions;
 
     /// <summary>
     /// 语言选择框模式 ComboBox 的本地化显示选项列表。
     /// </summary>
-    /// <value>包含所有 <see cref="LanguageSelectorMode"/> 枚举值的本地化名称。</value>
     public ObservableCollection<string> SelectorModeOptions => _selectorModeOptions;
 
     /// <summary>
     /// 终端类型 ComboBox 的本地化显示选项列表。
     /// </summary>
-    /// <value>包含所有 <see cref="TerminalType"/> 枚举值的本地化名称。</value>
     public ObservableCollection<string> TerminalOptions => _terminalOptions;
+
+    /// <summary>
+    /// 命令解释器类型 ComboBox 的本地化显示选项列表。
+    /// </summary>
+    public ObservableCollection<string> ShellOptions => _shellOptions;
 
     #endregion
 
@@ -249,6 +261,22 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// 命令解释器类型 ComboBox 的当前选中索引。
+    /// </summary>
+    /// <value>对应 <see cref="ShellType"/> 枚举的整型值。设置时同步写入 Config。</value>
+    public int SelectedShellIndex
+    {
+        get => _selectedShellIndex;
+        set
+        {
+            if (SetProperty(ref _selectedShellIndex, value) && !_isSuppressingChanges && value >= 0)
+            {
+                Config.Shell = (ShellType)value;
+            }
+        }
+    }
+
     #endregion
 
     #region 开关属性
@@ -270,17 +298,17 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// 执行代码后是否自动退出应用程序。
+    /// 开始执行代码时是否自动退出应用程序。
     /// </summary>
     /// <value>true 表示自动退出，false 表示保持运行。设置时同步写入 Config。</value>
-    public bool AutoExitAfterExecution
+    public bool AutoExitOnExecution
     {
-        get => _autoExitAfterExecution;
+        get => _autoExitOnExecution;
         set
         {
-            if (SetProperty(ref _autoExitAfterExecution, value) && !_isSuppressingChanges)
+            if (SetProperty(ref _autoExitOnExecution, value) && !_isSuppressingChanges)
             {
-                Config.AutoExitAfterExecution = value;
+                Config.AutoExitOnExecution = value;
             }
         }
     }
@@ -292,49 +320,41 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// <summary>
     /// 本地化的应用程序显示名称。
     /// </summary>
-    /// <value>根据当前语言返回 "一次运行" 或 "RunOnce"。语言切换时需通过 PropertyChanged 通知更新。</value>
     public string AppName => Config.AppName;
 
     /// <summary>
     /// 应用程序版本号。
     /// </summary>
-    /// <value>固定值，格式为 "0.1.0"。</value>
     public string Version => Config.Version;
 
     /// <summary>
     /// 带前缀的版本号显示文本。
     /// </summary>
-    /// <value>格式为 "v{Version}"，用于宽屏左侧面板显示。</value>
     public string VersionDisplay => $"v{Config.Version}";
 
     /// <summary>
     /// 应用程序作者名称。
     /// </summary>
-    /// <value>固定值 "WaterRun"。</value>
     public string Author => Config.Author;
 
     /// <summary>
     /// 格式化的编译时间文本。
     /// </summary>
-    /// <value>格式为 "yyyy-MM-dd HH:mm:ss"，使用不变文化格式。</value>
     public string BuildTimeText => _buildTime.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture);
 
     /// <summary>
     /// GitHub 仓库 URL。
     /// </summary>
-    /// <value>固定 URL 字符串。</value>
     public string GitHubUrl => Config.GitHubUrl;
 
     /// <summary>
     /// 微软商店 URL 是否可用。
     /// </summary>
-    /// <value>true 表示 URL 非空，可显示商店链接。</value>
     public bool HasStoreUrl => !string.IsNullOrEmpty(Config.MicrosoftStoreUrl);
 
     /// <summary>
     /// 微软商店 URL。
     /// </summary>
-    /// <value>商店链接字符串，暂为空。</value>
     public string StoreUrl => Config.MicrosoftStoreUrl;
 
     #endregion
@@ -453,7 +473,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// <summary>
     /// 触发指定属性的变更通知。
     /// </summary>
-    /// <param name="propertyName">变更的属性名称，由编译器自动填充。不允许为 null。</param>
+    /// <param name="propertyName">变更的属性名称，由编译器自动填充。</param>
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
@@ -465,7 +485,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// <typeparam name="T">属性值的类型。</typeparam>
     /// <param name="field">属性的后备字段引用。</param>
     /// <param name="value">待设置的新值。</param>
-    /// <param name="propertyName">属性名称，由编译器自动填充。不允许为 null。</param>
+    /// <param name="propertyName">属性名称，由编译器自动填充。</param>
     /// <returns>若值发生变化并已通知则返回 true，否则返回 false。</returns>
     private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
@@ -492,6 +512,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         UpdateCollectionItems(_languageOptions, Enum.GetValues<DisplayLanguage>().Select(Config.GetLanguageDisplayName));
         UpdateCollectionItems(_selectorModeOptions, Enum.GetValues<LanguageSelectorMode>().Select(Config.GetSelectorModeDisplayName));
         UpdateCollectionItems(_terminalOptions, Enum.GetValues<TerminalType>().Select(Config.GetTerminalDisplayName));
+        UpdateCollectionItems(_shellOptions, Enum.GetValues<ShellType>().Select(Config.GetShellDisplayName));
     }
 
     /// <summary>
@@ -525,8 +546,9 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         SelectedLanguageIndex = (int)Config.Language;
         SelectedSelectorModeIndex = (int)Config.SelectorMode;
         SelectedTerminalIndex = (int)Config.Terminal;
+        SelectedShellIndex = (int)Config.Shell;
         ConfirmBeforeExecution = Config.ConfirmBeforeExecution;
-        AutoExitAfterExecution = Config.AutoExitAfterExecution;
+        AutoExitOnExecution = Config.AutoExitOnExecution;
     }
 
     /// <summary>
