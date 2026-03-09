@@ -22,8 +22,11 @@ namespace RunOnce.Static;
 /// 脚本执行管理静态类，提供临时脚本文件生成与终端执行功能。
 /// </summary>
 /// <remarks>
-/// 不变量：临时文件根据 <see cref="Config.ScriptPlacement"/> 配置创建在系统临时目录或工作目录下，
-/// 文件名包含随机后缀以避免冲突。执行命令末尾包含清理指令以确保临时文件被删除。
+/// 不变量：
+/// 1) 临时文件根据 <see cref="Config.ScriptPlacement"/> 配置创建在系统临时目录或工作目录下；
+/// 2) 临时文件命名仅使用 <see cref="Config.TempFilePrefix"/>（单一真源，不包含任何旧前缀兼容）；
+/// 3) 文件名包含随机后缀以避免冲突；
+/// 4) 执行命令末尾包含清理指令以确保临时文件被删除。
 /// 线程安全：所有公开方法为线程安全，内部字典为只读。
 /// 副作用：会在文件系统创建临时文件，启动外部终端进程。
 /// </remarks>
@@ -140,6 +143,7 @@ public static class Exec
     /// 扫描 <see cref="Path.GetTempPath"/> 下所有以 <see cref="Config.TempFilePrefix"/> 开头的文件并尝试删除。
     /// 被锁定的文件（正在被其他进程使用）会被静默跳过。
     /// 仅清理系统临时目录中的残留文件；放置在工作目录中的文件不在此方法清理范围内。
+    /// 不包含任何旧前缀兼容清理逻辑。
     /// 建议在应用启动时调用一次。
     /// </remarks>
     public static void CleanupStaleTempFiles()

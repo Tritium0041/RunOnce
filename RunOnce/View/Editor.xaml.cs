@@ -23,11 +23,9 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.System;
-using DispatcherQueueTimer = Microsoft.UI.Dispatching.DispatcherQueueTimer;
 using Windows.UI;
 using Windows.UI.Core;
-using Microsoft.UI.Text;
-using ITextRange = Microsoft.UI.Text.ITextRange;
+using DispatcherQueueTimer = Microsoft.UI.Dispatching.DispatcherQueueTimer;
 using TextGetOptions = Microsoft.UI.Text.TextGetOptions;
 
 namespace RunOnce.View;
@@ -38,6 +36,7 @@ namespace RunOnce.View;
 /// <remarks>
 /// 不变量：<see cref="ViewModel"/> 在构造时创建，生命周期与页面一致；
 /// 语法高亮通过 80ms 去抖定时器异步应用，不阻塞用户输入；
+/// 在鼠标拖动选区期间暂停高亮，防止选区闪烁/丢失；
 /// 格式化操作前后保存并恢复 ScrollViewer 滚动位置，防止视口抖动。
 /// 线程安全：所有成员必须在 UI 线程访问。
 /// 副作用：高亮操作修改 RichEditBox 的字符格式；执行操作创建临时文件并启动终端进程。
@@ -68,6 +67,16 @@ public sealed partial class Editor : Page
     /// 标识当前是否正在执行流程中，防止重入。
     /// </summary>
     private bool _isExecuting;
+
+    /// <summary>
+    /// 标识当前是否处于鼠标拖动选区过程。
+    /// </summary>
+    private bool _isPointerSelecting;
+
+    /// <summary>
+    /// 标识是否在拖动结束后补做一次高亮。
+    /// </summary>
+    private bool _pendingHighlightAfterPointerSelection;
 
     /// <summary>
     /// RichEditBox 内部 ScrollViewer 的缓存引用，在页面加载时获取。
@@ -105,6 +114,12 @@ public sealed partial class Editor : Page
     /// <param name="args">事件参数。</param>
     private void OnActualThemeChanged(FrameworkElement sender, object args)
     {
+        if (_isPointerSelecting)
+        {
+            _pendingHighlightAfterPointerSelection = true;
+            return;
+        }
+
         ApplyHighlighting();
     }
 
@@ -193,6 +208,79 @@ public sealed partial class Editor : Page
 
     #endregion
 
+    #region 指针拖动选区保护
+
+    /// <summary>
+    /// 处理编辑器指针按下事件，进入拖动选区保护状态。
+    /// </summary>
+    /// <param name="sender">事件源对象。</param>
+    /// <param name="e">指针事件参数。</param>
+    private void CodeEditor_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        PointerPoint point = e.GetCurrentPoint(CodeEditor);
+        if (point.Properties.IsLeftButtonPressed)
+        {
+            _isPointerSelecting = true;
+            _pendingHighlightAfterPointerSelection = false;
+        }
+    }
+
+    /// <summary>
+    /// 处理编辑器指针释放事件，退出拖动选区保护状态。
+    /// </summary>
+    /// <param name="sender">事件源对象。</param>
+    /// <param name="e">指针事件参数。</param>
+    private void CodeEditor_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        EndPointerSelectionAndFlushHighlight();
+    }
+
+    /// <summary>
+    /// 处理编辑器指针取消事件，退出拖动选区保护状态。
+    /// </summary>
+    /// <param name="sender">事件源对象。</param>
+    /// <param name="e">指针事件参数。</param>
+    private void CodeEditor_PointerCanceled(object sender, PointerRoutedEventArgs e)
+    {
+        EndPointerSelectionAndFlushHighlight();
+    }
+
+    /// <summary>
+    /// 处理编辑器指针捕获丢失事件，退出拖动选区保护状态。
+    /// </summary>
+    /// <param name="sender">事件源对象。</param>
+    /// <param name="e">路由事件参数。</param>
+    private void CodeEditor_PointerCaptureLost(object sender, RoutedEventArgs e)
+    {
+        EndPointerSelectionAndFlushHighlight();
+    }
+
+    /// <summary>
+    /// 处理编辑器失焦事件，退出拖动选区保护状态。
+    /// </summary>
+    /// <param name="sender">事件源对象。</param>
+    /// <param name="e">路由事件参数。</param>
+    private void CodeEditor_LostFocus(object sender, RoutedEventArgs e)
+    {
+        EndPointerSelectionAndFlushHighlight();
+    }
+
+    /// <summary>
+    /// 结束拖动选区状态，并在必要时补做一次高亮。
+    /// </summary>
+    private void EndPointerSelectionAndFlushHighlight()
+    {
+        _isPointerSelecting = false;
+
+        if (_pendingHighlightAfterPointerSelection)
+        {
+            _pendingHighlightAfterPointerSelection = false;
+            ApplyHighlighting();
+        }
+    }
+
+    #endregion
+
     #region 文本与光标事件
 
     /// <summary>
@@ -235,6 +323,13 @@ public sealed partial class Editor : Page
     {
         string text = GetPlainText();
         ViewModel.RunDetection(NormalizeForAnalysis(text));
+
+        if (_isPointerSelecting)
+        {
+            _pendingHighlightAfterPointerSelection = true;
+            return;
+        }
+
         ApplyHighlighting(text);
     }
 
@@ -320,7 +415,7 @@ public sealed partial class Editor : Page
 
         if (spacesToRemove > 0)
         {
-            ITextRange range = CodeEditor.Document.GetRange(lineStart, lineStart + spacesToRemove);
+            var range = CodeEditor.Document.GetRange(lineStart, lineStart + spacesToRemove);
             range.Text = string.Empty;
         }
     }
@@ -334,11 +429,18 @@ public sealed partial class Editor : Page
     /// </summary>
     /// <param name="text">编辑器原始文本，若为 null 则从编辑器获取。</param>
     /// <remarks>
+    /// 在鼠标拖动选区期间暂停高亮应用，避免拖动选区闪烁或丢失。
     /// 格式化操作前保存 ScrollViewer 的滚动位置和文本选区，
     /// 操作完成后恢复，防止视口抖动。
     /// </remarks>
     private void ApplyHighlighting(string? text = null)
     {
+        if (_isPointerSelecting)
+        {
+            _pendingHighlightAfterPointerSelection = true;
+            return;
+        }
+
         text ??= GetPlainText();
         string language = ViewModel.EffectiveLanguage;
 
@@ -359,7 +461,7 @@ public sealed partial class Editor : Page
             int selStart = doc.Selection.StartPosition;
             int selEnd = doc.Selection.EndPosition;
 
-            ITextRange fullRange = doc.GetRange(0, text.Length);
+            var fullRange = doc.GetRange(0, text.Length);
             fullRange.CharacterFormat.ForegroundColor = GetDefaultTextColor();
 
             if (!string.IsNullOrEmpty(language))
@@ -371,7 +473,7 @@ public sealed partial class Editor : Page
                 {
                     if (span.Start >= 0 && span.End <= text.Length)
                     {
-                        ITextRange range = doc.GetRange(span.Start, span.End);
+                        var range = doc.GetRange(span.Start, span.End);
                         range.CharacterFormat.ForegroundColor = GetColorForToken(span.Type);
                     }
                 }

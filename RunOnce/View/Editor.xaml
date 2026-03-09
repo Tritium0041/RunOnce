@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     @file: View/Editor.xaml
-    @date: 2026-03-04
+    @date: 2026-03-09
 -->
 <Page
     x:Class="RunOnce.View.Editor"
@@ -59,7 +59,12 @@
             ScrollViewer.VerticalScrollMode="Enabled"
             SelectionChanged="CodeEditor_SelectionChanged"
             TextChanged="CodeEditor_TextChanged"
-            PreviewKeyDown="CodeEditor_PreviewKeyDown">
+            PreviewKeyDown="CodeEditor_PreviewKeyDown"
+            PointerPressed="CodeEditor_PointerPressed"
+            PointerReleased="CodeEditor_PointerReleased"
+            PointerCanceled="CodeEditor_PointerCanceled"
+            PointerCaptureLost="CodeEditor_PointerCaptureLost"
+            LostFocus="CodeEditor_LostFocus">
             <RichEditBox.Resources>
                 <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
             </RichEditBox.Resources>
@@ -103,3 +108,4 @@
         </Grid>
     </Grid>
 </Page>
+    
