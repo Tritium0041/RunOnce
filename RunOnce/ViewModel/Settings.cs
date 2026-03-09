@@ -26,7 +26,7 @@ namespace RunOnce.ViewModel;
 /// 设置页面的 ViewModel，承载所有用户可交互设置的状态及关于信息。
 /// </summary>
 /// <remarks>
-/// 不变量：所有可变属性的 Setter 在非抑制状态下同步写入 <see cref="Config"/>；
+/// 不变量：所有可变属性的 Setter 在非抑制状态下同步写入 <see cref="Config"/>（脚本放置行为除外，需 View 确认后写入）；
 /// 选项列表使用 <see cref="ObservableCollection{T}"/> 实现原地更新，避免语言切换时的布局抖动。
 /// 线程安全：非线程安全，所有成员必须在 UI 线程访问。
 /// 副作用：属性 Setter 会触发 <see cref="Config"/> 的持久化写入及 PropertyChanged 通知。
@@ -70,6 +70,11 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// </summary>
     private readonly ObservableCollection<string> _shellOptions;
 
+    /// <summary>
+    /// 脚本放置行为 ComboBox 的显示选项列表。
+    /// </summary>
+    private readonly ObservableCollection<string> _scriptPlacementOptions;
+
     #endregion
 
     #region 选中索引后备字段
@@ -98,6 +103,11 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// 当前选中的命令解释器类型索引。
     /// </summary>
     private int _selectedShellIndex;
+
+    /// <summary>
+    /// 当前选中的脚本放置行为索引。
+    /// </summary>
+    private int _selectedScriptPlacementIndex;
 
     #endregion
 
@@ -145,6 +155,17 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// </remarks>
     public event Action? LanguageChanged;
 
+    /// <summary>
+    /// 用户更改脚本放置行为时触发，参数为旧索引与新索引。
+    /// </summary>
+    /// <remarks>
+    /// 触发时机：用户通过 ComboBox 选择新放置行为后，Config 尚未更新。
+    /// View 应在此事件中弹出确认对话框，确认后调用 <see cref="ConfirmScriptPlacement"/>，
+    /// 取消后调用 <see cref="RevertScriptPlacement"/>。
+    /// 线程上下文：UI 线程。
+    /// </remarks>
+    public event Action<int, int>? ScriptPlacementChangeRequested;
+
     #endregion
 
     /// <summary>
@@ -157,6 +178,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         _selectorModeOptions = new(Enum.GetValues<LanguageSelectorMode>().Select(Config.GetSelectorModeDisplayName));
         _terminalOptions = new(Enum.GetValues<TerminalType>().Select(Config.GetTerminalDisplayName));
         _shellOptions = new(Enum.GetValues<ShellType>().Select(Config.GetShellDisplayName));
+        _scriptPlacementOptions = new(Enum.GetValues<ScriptPlacementBehavior>().Select(Config.GetScriptPlacementDisplayName));
 
         _isSuppressingChanges = true;
         SynchronizeFromConfig();
@@ -189,6 +211,11 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// 命令解释器类型 ComboBox 的本地化显示选项列表。
     /// </summary>
     public ObservableCollection<string> ShellOptions => _shellOptions;
+
+    /// <summary>
+    /// 脚本放置行为 ComboBox 的本地化显示选项列表。
+    /// </summary>
+    public ObservableCollection<string> ScriptPlacementOptions => _scriptPlacementOptions;
 
     #endregion
 
@@ -275,6 +302,58 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
                 Config.Shell = (ShellType)value;
             }
         }
+    }
+
+    /// <summary>
+    /// 脚本放置行为 ComboBox 的当前选中索引。
+    /// </summary>
+    /// <value>
+    /// 对应 <see cref="ScriptPlacementBehavior"/> 枚举的整型值。
+    /// 设置时不直接写入 Config，而是触发 <see cref="ScriptPlacementChangeRequested"/> 事件，
+    /// 由 View 层弹出确认对话框后决定是否写入。
+    /// </value>
+    public int SelectedScriptPlacementIndex
+    {
+        get => _selectedScriptPlacementIndex;
+        set
+        {
+            int previousValue = _selectedScriptPlacementIndex;
+            if (SetProperty(ref _selectedScriptPlacementIndex, value) && !_isSuppressingChanges && value >= 0)
+            {
+                ScriptPlacementChangeRequested?.Invoke(previousValue, value);
+            }
+        }
+    }
+
+    #endregion
+
+    #region 脚本放置行为确认/撤销
+
+    /// <summary>
+    /// 确认脚本放置行为变更，将新值写入 Config 持久化。
+    /// </summary>
+    /// <param name="newIndex">已确认的新选项索引。</param>
+    /// <remarks>
+    /// 由 View 层在用户确认对话框后调用。
+    /// </remarks>
+    public void ConfirmScriptPlacement(int newIndex)
+    {
+        Config.ScriptPlacement = (ScriptPlacementBehavior)newIndex;
+    }
+
+    /// <summary>
+    /// 撤销脚本放置行为变更，将 ComboBox 恢复到原选项。
+    /// </summary>
+    /// <param name="oldIndex">变更前的选项索引。</param>
+    /// <remarks>
+    /// 由 View 层在用户取消对话框后调用。
+    /// 在抑制状态下设置索引，避免再次触发确认事件。
+    /// </remarks>
+    public void RevertScriptPlacement(int oldIndex)
+    {
+        _isSuppressingChanges = true;
+        SelectedScriptPlacementIndex = oldIndex;
+        _isSuppressingChanges = false;
     }
 
     #endregion
@@ -416,11 +495,11 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// <returns>包含默认临时文件前缀、默认置信度阈值和默认语言命令的元组。</returns>
     public (string Prefix, double Threshold, Dictionary<string, string> Commands) ResetAdvancedToDefaults()
     {
-        Config.TempFilePrefix = "__RunOnceTMP__";
+        Config.TempFilePrefix = Config.DefaultTempFilePrefix;
         Config.ConfidenceThreshold = Config.DefaultConfidenceThreshold;
         Config.ResetAllLanguageCommands();
 
-        return ("__RunOnceTMP__", Config.DefaultConfidenceThreshold, Config.GetAllLanguageCommands());
+        return (Config.DefaultTempFilePrefix, Config.DefaultConfidenceThreshold, Config.GetAllLanguageCommands());
     }
 
     #endregion
@@ -513,6 +592,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         UpdateCollectionItems(_selectorModeOptions, Enum.GetValues<LanguageSelectorMode>().Select(Config.GetSelectorModeDisplayName));
         UpdateCollectionItems(_terminalOptions, Enum.GetValues<TerminalType>().Select(Config.GetTerminalDisplayName));
         UpdateCollectionItems(_shellOptions, Enum.GetValues<ShellType>().Select(Config.GetShellDisplayName));
+        UpdateCollectionItems(_scriptPlacementOptions, Enum.GetValues<ScriptPlacementBehavior>().Select(Config.GetScriptPlacementDisplayName));
     }
 
     /// <summary>
@@ -547,6 +627,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         SelectedSelectorModeIndex = (int)Config.SelectorMode;
         SelectedTerminalIndex = (int)Config.Terminal;
         SelectedShellIndex = (int)Config.Shell;
+        SelectedScriptPlacementIndex = (int)Config.ScriptPlacement;
         ConfirmBeforeExecution = Config.ConfirmBeforeExecution;
         AutoExitOnExecution = Config.AutoExitOnExecution;
     }

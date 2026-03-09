@@ -93,6 +93,18 @@ public enum ShellType
 }
 
 /// <summary>
+/// 脚本放置行为枚举，定义临时代码文件的放置位置策略。
+/// </summary>
+public enum ScriptPlacementBehavior
+{
+    /// <summary>确保清理：将临时文件放置在系统临时目录（默认行为）。</summary>
+    EnsureCleanup,
+
+    /// <summary>确保兼容：将临时文件放置在脚本执行的工作目录。</summary>
+    EnsureCompatibility,
+}
+
+/// <summary>
 /// 应用程序配置静态类，提供所有用户设置项的读写与持久化，以及硬编码常量的访问。
 /// </summary>
 /// <remarks>
@@ -208,12 +220,15 @@ public static class Config
     /// <summary>命令解释器类型设置项的存储键名。</summary>
     private const string KeyShellType = "ShellType";
 
+    /// <summary>脚本放置行为设置项的存储键名。</summary>
+    private const string KeyScriptPlacement = "ScriptPlacement";
+
     #endregion
 
     #region 默认值常量
 
     /// <summary>临时文件名前缀的默认值。</summary>
-    private const string DefaultTempFilePrefix = "__RunOnceTMP__";
+    public const string DefaultTempFilePrefix = "RunOnce_TMP";
 
     /// <summary>置信度阈值的默认值。</summary>
     public const double DefaultConfidenceThreshold = 0.50;
@@ -280,7 +295,7 @@ public static class Config
     /// 获取或设置临时文件名前缀。
     /// </summary>
     /// <value>
-    /// 非空字符串，默认为 "__RunOnceTMP__"。
+    /// 非空字符串，默认为 "RunOnce_TMP"。
     /// 用于生成临时脚本文件时的文件名前缀标识。
     /// </value>
     /// <exception cref="ArgumentNullException">当设置值为 null 时抛出。</exception>
@@ -449,6 +464,35 @@ public static class Config
             lock (_syncLock)
             {
                 _localSettings.Values[KeyShellType] = (int)value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 获取或设置脚本临时文件的放置行为。
+    /// </summary>
+    /// <value>
+    /// ScriptPlacementBehavior 枚举值，默认为 EnsureCleanup（放置在系统临时目录）。
+    /// 设置时立即持久化到本地存储。
+    /// </value>
+    public static ScriptPlacementBehavior ScriptPlacement
+    {
+        get
+        {
+            lock (_syncLock)
+            {
+                return _localSettings.Values.TryGetValue(KeyScriptPlacement, out object? value)
+                       && value is int intValue
+                       && Enum.IsDefined(typeof(ScriptPlacementBehavior), intValue)
+                    ? (ScriptPlacementBehavior)intValue
+                    : ScriptPlacementBehavior.EnsureCleanup;
+            }
+        }
+        set
+        {
+            lock (_syncLock)
+            {
+                _localSettings.Values[KeyScriptPlacement] = (int)value;
             }
         }
     }
@@ -711,6 +755,18 @@ public static class Config
         _ => shell.ToString(),
     };
 
+    /// <summary>
+    /// 获取脚本放置行为枚举值的本地化显示名称。
+    /// </summary>
+    /// <param name="placement">脚本放置行为枚举值。</param>
+    /// <returns>本地化后的显示名称字符串。</returns>
+    public static string GetScriptPlacementDisplayName(ScriptPlacementBehavior placement) => placement switch
+    {
+        ScriptPlacementBehavior.EnsureCleanup => Text.Localize("确保清理"),
+        ScriptPlacementBehavior.EnsureCompatibility => Text.Localize("确保兼容"),
+        _ => placement.ToString(),
+    };
+
     #endregion
 
     #region 重置方法
@@ -720,7 +776,7 @@ public static class Config
     /// </summary>
     /// <remarks>
     /// 包括主题风格、显示语言、临时文件前缀、语言选择框模式、执行确认开关、
-    /// 置信度阈值、执行时自动退出、终端类型、命令解释器类型以及所有语言执行指令。
+    /// 置信度阈值、执行时自动退出、终端类型、命令解释器类型、脚本放置行为以及所有语言执行指令。
     /// 重置后立即持久化到本地存储。
     /// </remarks>
     public static void ResetAllSettings()
@@ -736,6 +792,7 @@ public static class Config
             _localSettings.Values[KeyAutoExitOnExecution] = true;
             _localSettings.Values[KeyTerminalType] = (int)TerminalType.WindowsTerminal;
             _localSettings.Values[KeyShellType] = (int)ShellType.PowerShell;
+            _localSettings.Values[KeyScriptPlacement] = (int)ScriptPlacementBehavior.EnsureCleanup;
             _languageCommands = CreateDefaultLanguageCommands();
             _languageCommandsLoaded = true;
             PersistLanguageCommands();

@@ -44,6 +44,7 @@ public sealed partial class Settings : Page
         ViewModel = new SettingsViewModel();
         ViewModel.ThemeChanged += OnThemeChanged;
         ViewModel.LanguageChanged += OnLanguageChanged;
+        ViewModel.ScriptPlacementChangeRequested += OnScriptPlacementChangeRequested;
         InitializeComponent();
         Loaded += HandlePageLoaded;
     }
@@ -83,6 +84,53 @@ public sealed partial class Settings : Page
         RefreshStoreRowVisibility();
     }
 
+    /// <summary>
+    /// 处理 ViewModel 的脚本放置行为变更请求，弹出确认对话框。
+    /// </summary>
+    /// <param name="oldIndex">变更前的选项索引。</param>
+    /// <param name="newIndex">变更后的选项索引。</param>
+    /// <remarks>
+    /// 用户确认后将变更写入 Config；用户取消后恢复 ComboBox 至原选项。
+    /// </remarks>
+    private async void OnScriptPlacementChangeRequested(int oldIndex, int newIndex)
+    {
+        if (XamlRoot is null)
+        {
+            ViewModel.RevertScriptPlacement(oldIndex);
+            return;
+        }
+
+        string message = (ScriptPlacementBehavior)newIndex switch
+        {
+            ScriptPlacementBehavior.EnsureCompatibility =>
+                Text.Localize("此操作将把临时代码文件放置在工作目录，当异常关闭时，可能无法有效的清理。"),
+            ScriptPlacementBehavior.EnsureCleanup =>
+                Text.Localize("此操作将把临时代码文件放置在临时目录，可能产生一些兼容性问题。"),
+            _ => string.Empty,
+        };
+
+        ContentDialog confirmDialog = new()
+        {
+            Title = Text.Localize("脚本放置行为"),
+            Content = message,
+            PrimaryButtonText = Text.Localize("确定"),
+            CloseButtonText = Text.Localize("取消"),
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot,
+        };
+
+        ContentDialogResult result = await confirmDialog.ShowAsync();
+
+        if (result is ContentDialogResult.Primary)
+        {
+            ViewModel.ConfirmScriptPlacement(newIndex);
+        }
+        else
+        {
+            ViewModel.RevertScriptPlacement(oldIndex);
+        }
+    }
+
     #endregion
 
     #region 本地化文本
@@ -112,6 +160,8 @@ public sealed partial class Settings : Page
         TerminalDescription.Text = Text.Localize("选择启动的终端模拟器");
         ShellLabel.Text = Text.Localize("运行环境");
         ShellDescription.Text = Text.Localize("选择执行代码使用的命令解释器");
+        ScriptPlacementLabel.Text = Text.Localize("脚本放置行为");
+        ScriptPlacementDescription.Text = Text.Localize("选择临时代码文件的放置位置");
         ShortcutsLabel.Text = Text.Localize("快捷键");
         ShortcutsDescription.Text = Text.Localize("查看应用程序支持的快捷键");
         ShortcutsButton.Content = Text.Localize("查看");
@@ -267,7 +317,7 @@ public sealed partial class Settings : Page
         {
             Header = Text.Localize("临时文件名前缀"),
             Text = ViewModel.GetTempFilePrefix(),
-            PlaceholderText = "__RunOnceTMP__",
+            PlaceholderText = Config.DefaultTempFilePrefix,
         };
         contentPanel.Children.Add(prefixTextBox);
 

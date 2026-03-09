@@ -307,6 +307,30 @@
                         SelectedIndex="{x:Bind ViewModel.SelectedShellIndex, Mode=TwoWay}"/>
                 </Grid>
 
+                <!-- 脚本放置行为 -->
+                <Grid
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1,0,1,1"
+                    CornerRadius="0"
+                    Padding="16,12,16,12"
+                    MinHeight="60">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock x:Name="ScriptPlacementLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
+                        <TextBlock x:Name="ScriptPlacementDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ComboBox
+                        Grid.Column="1"
+                        MinWidth="180"
+                        VerticalAlignment="Center"
+                        ItemsSource="{x:Bind ViewModel.ScriptPlacementOptions}"
+                        SelectedIndex="{x:Bind ViewModel.SelectedScriptPlacementIndex, Mode=TwoWay}"/>
+                </Grid>
+
                 <!-- 快捷键 -->
                 <Grid
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"

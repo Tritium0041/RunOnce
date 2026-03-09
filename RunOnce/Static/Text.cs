@@ -52,6 +52,10 @@ public static class Text
         ["Windows 终端"] = "Windows Terminal",
         ["命令提示符"] = "Command Prompt",
 
+        // 脚本放置行为
+        ["确保清理"] = "Ensure Cleanup",
+        ["确保兼容"] = "Ensure Compatibility",
+
         // 页面标题
         ["编辑器"] = "Editor",
         ["设置"] = "Settings",
@@ -78,6 +82,8 @@ public static class Text
         ["选择启动的终端模拟器"] = "Choose the terminal emulator to launch",
         ["运行环境"] = "Shell",
         ["选择执行代码使用的命令解释器"] = "Choose the shell for code execution",
+        ["脚本放置行为"] = "Script Placement",
+        ["选择临时代码文件的放置位置"] = "Choose where temporary code files are placed",
         ["高级设置"] = "Advanced Settings",
         ["配置临时文件、置信度阈值和语言命令"] = "Configure the temporary file, confidence threshold, and language commands",
         ["打开"] = "Open",
@@ -115,6 +121,10 @@ public static class Text
         // 重置确认对话框
         ["确定要将所有设置重置为默认值吗？此操作无法撤销。"] = "Are you sure you want to reset all settings to default? This action cannot be undone.",
         ["重置"] = "Reset",
+
+        // 脚本放置行为确认对话框
+        ["此操作将把临时代码文件放置在工作目录，当异常关闭时，可能无法有效的清理。"] = "This will place temporary code files in the working directory. They may not be cleaned up properly if the application closes unexpectedly.",
+        ["此操作将把临时代码文件放置在临时目录，可能产生一些兼容性问题。"] = "This will place temporary code files in the temp directory, which may cause some compatibility issues.",
 
         // 编辑器页面
         ["纯文本"] = "Plain Text",

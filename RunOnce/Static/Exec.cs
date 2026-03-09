@@ -1,7 +1,7 @@
 ﻿/*
  * 脚本执行管理
  * 提供临时脚本文件生成、终端执行及临时文件清理功能
- * 临时文件存放于系统临时目录，执行完成后由终端命令自动清理，应用启动时兜底清扫残留文件
+ * 临时文件根据配置存放于系统临时目录或工作目录，执行完成后由终端命令自动清理，应用启动时兜底清扫残留文件
  *
  * @author: WaterRun
  * @file: Static/Exec.cs
@@ -22,8 +22,8 @@ namespace RunOnce.Static;
 /// 脚本执行管理静态类，提供临时脚本文件生成与终端执行功能。
 /// </summary>
 /// <remarks>
-/// 不变量：临时文件始终创建在 <see cref="Path.GetTempPath"/> 目录下，文件名包含随机后缀以避免冲突。
-/// 执行命令末尾包含清理指令以确保临时文件被删除。
+/// 不变量：临时文件根据 <see cref="Config.ScriptPlacement"/> 配置创建在系统临时目录或工作目录下，
+/// 文件名包含随机后缀以避免冲突。执行命令末尾包含清理指令以确保临时文件被删除。
 /// 线程安全：所有公开方法为线程安全，内部字典为只读。
 /// 副作用：会在文件系统创建临时文件，启动外部终端进程。
 /// </remarks>
@@ -79,7 +79,7 @@ public static class Exec
     }
 
     /// <summary>
-    /// 在系统临时目录生成临时脚本文件，启动终端执行脚本，执行完成后自动清理临时文件。
+    /// 根据配置生成临时脚本文件，启动终端执行脚本，执行完成后自动清理临时文件。
     /// </summary>
     /// <param name="code">要执行的脚本代码内容，不允许为 null 或空字符串。</param>
     /// <param name="language">
@@ -94,6 +94,8 @@ public static class Exec
     /// <remarks>
     /// 此方法为 fire-and-forget 模式，启动终端进程后立即返回。
     /// 临时文件的清理由终端命令自行完成，不依赖本程序的后续执行。
+    /// 当 <see cref="Config.ScriptPlacement"/> 为 EnsureCleanup 时文件创建在系统临时目录，
+    /// 为 EnsureCompatibility 时文件创建在工作目录。
     /// </remarks>
     public static void Execute(string code, string language, string workingDirectory)
     {
@@ -118,7 +120,13 @@ public static class Exec
             throw new ArgumentException(Text.Localize("工作目录不存在: {0}。", workingDirectory), nameof(workingDirectory));
         }
 
-        string tempFilePath = CreateTempFile(code, language);
+        string tempFileDirectory = Config.ScriptPlacement switch
+        {
+            ScriptPlacementBehavior.EnsureCompatibility => workingDirectory,
+            _ => Path.GetTempPath(),
+        };
+
+        string tempFilePath = CreateTempFile(code, language, tempFileDirectory);
         string languageCommand = Config.GetLanguageCommand(language);
         (string shellExe, string shellArgs) = BuildShellLaunchInfo(languageCommand, tempFilePath);
 
@@ -131,6 +139,7 @@ public static class Exec
     /// <remarks>
     /// 扫描 <see cref="Path.GetTempPath"/> 下所有以 <see cref="Config.TempFilePrefix"/> 开头的文件并尝试删除。
     /// 被锁定的文件（正在被其他进程使用）会被静默跳过。
+    /// 仅清理系统临时目录中的残留文件；放置在工作目录中的文件不在此方法清理范围内。
     /// 建议在应用启动时调用一次。
     /// </remarks>
     public static void CleanupStaleTempFiles()
@@ -159,18 +168,19 @@ public static class Exec
     }
 
     /// <summary>
-    /// 在系统临时目录创建临时脚本文件。
+    /// 在指定目录下创建临时脚本文件。
     /// </summary>
     /// <param name="code">脚本代码内容，已验证非空。</param>
     /// <param name="language">脚本语言标识符，已验证有效。</param>
+    /// <param name="baseDirectory">临时文件的存放目录路径。</param>
     /// <returns>创建的临时文件的完整路径。</returns>
     /// <exception cref="IOException">当文件创建失败时抛出。</exception>
-    private static string CreateTempFile(string code, string language)
+    private static string CreateTempFile(string code, string language, string baseDirectory)
     {
         string extension = GetFileExtension(language);
         string uniqueSuffix = Guid.NewGuid().ToString("N")[..8];
         string fileName = Config.TempFilePrefix + uniqueSuffix + extension;
-        string filePath = Path.Combine(Path.GetTempPath(), fileName);
+        string filePath = Path.Combine(baseDirectory, fileName);
 
         try
         {
