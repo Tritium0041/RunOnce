@@ -822,7 +822,10 @@ proc scanDirectory(path: string = ".") =
   echo ""
 
   echo "按扩展名统计:"
-  echo fmt"{'扩展名':<15} {'数量':>6} {'大小':>12}"
+  let hExt   = "扩展名"
+  let hCount = "数量"
+  let hSize  = "大小"
+  echo fmt"{hExt:<15} {hCount:>6} {hSize:>12}"
   echo "-".repeat(35)
 
   var sorted: seq[tuple[ext: string, count: int, size: int64]] = @[]
@@ -889,21 +892,25 @@ proc findLargeFiles(dir: string = ".", thresholdKB: int = 100) =
   echo fmt"大于 {thresholdKB}KB 的文件: {allFiles.len} 个"
   echo ""
 
-  echo fmt"{'大小':>12} {'修改时间':<20} {'路径'}"
+  let hSize = "大小"
+  let hTime = "修改时间"
+  let hPath = "路径"
+  echo fmt"{hSize:>12} {hTime:<20} {hPath}"
   echo "-".repeat(70)
   for f in allFiles:
     let sizeStr = if f.size > 1024 * 1024:
         fmt"{f.size.float / 1024.0 / 1024.0:.1f} MB"
       else:
         fmt"{f.size.float / 1024.0:.1f} KB"
-    echo fmt"{sizeStr:>12} {f.modified.format('yyyy-MM-dd HH:mm'):<20} {f.path}"
+    let timeStr = f.modified.format("yyyy-MM-dd HH:mm")
+    echo fmt"{sizeStr:>12} {timeStr:<20} {f.path}"
 
 findLargeFiles()
 discard readLine(stdin)
 ```
 
 ```nim
-import os, strutils, strformat, tables
+import os, strutils, strformat, tables, algorithm
 
 proc countLines(dir: string = ".") =
   echo "===== 代码行数统计 ====="
@@ -965,7 +972,13 @@ proc countLines(dir: string = ".") =
 
   walkAll(dir)
 
-  echo fmt"{'语言':<15} {'文件':>6} {'总行数':>8} {'代码':>8} {'注释':>8} {'空行':>8}"
+  let hLang    = "语言"
+  let hFiles   = "文件"
+  let hLines   = "总行数"
+  let hCode    = "代码"
+  let hComment = "注释"
+  let hBlank   = "空行"
+  echo fmt"{hLang:<15} {hFiles:>6} {hLines:>8} {hCode:>8} {hComment:>8} {hBlank:>8}"
   echo "-".repeat(60)
 
   type Row = tuple[lang: string, stat: LangStat]
@@ -977,21 +990,20 @@ proc countLines(dir: string = ".") =
   var totalLines, totalCode, totalComment, totalBlank = 0
   for r in rows:
     echo fmt"{r.lang:<15} {r.stat.files:>6} {r.stat.lines:>8} {r.stat.code:>8} {r.stat.comment:>8} {r.stat.blank:>8}"
-    totalLines += r.stat.lines
-    totalCode += r.stat.code
+    totalLines   += r.stat.lines
+    totalCode    += r.stat.code
     totalComment += r.stat.comment
-    totalBlank += r.stat.blank
+    totalBlank   += r.stat.blank
 
   echo "-".repeat(60)
-  echo fmt"{'合计':<15} {totalFiles:>6} {totalLines:>8} {totalCode:>8} {totalComment:>8} {totalBlank:>8}"
+  let hTotal = "合计"
+  echo fmt"{hTotal:<15} {totalFiles:>6} {totalLines:>8} {totalCode:>8} {totalComment:>8} {totalBlank:>8}"
 
 countLines()
 discard readLine(stdin)
 ```
 
 ---
-
-## go
 
 ```go
 package main
@@ -1093,7 +1105,6 @@ import (
     "io"
     "os"
     "path/filepath"
-    "sort"
 )
 
 func main() {
