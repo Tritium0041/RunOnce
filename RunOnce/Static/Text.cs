@@ -129,6 +129,7 @@ public static class Text
         ["此操作将把临时代码文件放置在临时目录，可能产生一些兼容性问题。"] = "This will place temporary code files in the temp directory, which may cause some compatibility issues.",
 
         // 编辑器页面
+        ["在此粘贴代码"] = "Paste code here",
         ["纯文本"] = "Plain Text",
         ["行"] = "Ln",
         ["列"] = "Col",
@@ -149,6 +150,9 @@ public static class Text
         // Config.cs 中的错误消息
         ["置信度阈值必须在 [0.0, 1.0] 范围内。"] = "Confidence threshold must be in the range [0.0, 1.0].",
         ["临时文件名前缀不能为空白字符串。"] = "Temporary file prefix cannot be empty or whitespace.",
+        ["临时文件名前缀长度不能超过 {0} 个字符。"] = "Temporary file prefix cannot exceed {0} characters.",
+        ["临时文件名前缀不能包含非法文件名字符。"] = "Temporary file prefix cannot contain invalid file name characters.",
+        ["临时文件名前缀不能包含字符 '[' 或 ']'。"] = "Temporary file prefix cannot contain '[' or ']'.",
         ["语言标识符不能为空白字符串。"] = "Language identifier cannot be empty or whitespace.",
         ["不支持的语言标识符: {0}。"] = "Unsupported language identifier: {0}.",
         ["执行指令不能为空白字符串。"] = "Execution command cannot be empty or whitespace.",

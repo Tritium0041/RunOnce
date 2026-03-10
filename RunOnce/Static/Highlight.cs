@@ -1,17 +1,16 @@
 ﻿/*
  * 语法高亮分析器
  * 提供代码文本的语法高亮区间分析，支持多种脚本语言的关键字、字符串、注释、数字识别
- * 
+ *
  * @author: WaterRun
  * @file: Static/Highlight.cs
- * @date: 2026-03-02
+ * @date: 2026-03-10
  */
 
 #nullable enable
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text.RegularExpressions;
 
 namespace RunOnce.Static;
@@ -68,9 +67,14 @@ public readonly record struct HighlightSpan(int Start, int Length, TokenType Typ
 /// 不变量：所有高亮规则为硬编码且不可变；返回的区间列表不包含重叠区间。
 /// 线程安全：所有公开方法为线程安全，内部状态均为只读。
 /// 副作用：无。
+///
+/// 分析按固定优先级分四阶段执行：注释 → 字符串 → 数字 → 关键字。
+/// 前序阶段产生的区间通过字符级占用位图屏蔽后序阶段，确保高优先级 Token 不被低优先级覆盖。
 /// </remarks>
 public static class Highlight
 {
+    #region 语言配置数据
+
     /// <summary>
     /// 各语言的关键字集合，键为语言标识符，值为关键字数组。
     /// </summary>
@@ -159,6 +163,10 @@ public static class Highlight
         @"\b(?:0[xX][0-9a-fA-F]+|0[bB][01]+|0[oO][0-7]+|\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)\b",
         RegexOptions.Compiled);
 
+    #endregion
+
+    #region 公开 API
+
     /// <summary>
     /// 对代码进行语法高亮分析，返回高亮区间列表。
     /// </summary>
@@ -181,15 +189,25 @@ public static class Highlight
         }
 
         List<HighlightSpan> spans = [];
-        HashSet<(int Start, int End)> occupiedRanges = [];
+        OccupancyMap occupied = new(code.Length);
 
-        AnalyzeComments(code, language, spans, occupiedRanges);
-        AnalyzeStrings(code, language, spans, occupiedRanges);
-        AnalyzeNumbers(code, spans, occupiedRanges);
-        AnalyzeKeywords(code, language, spans, occupiedRanges);
+        AnalyzeComments(code, language, spans, occupied);
+        AnalyzeStrings(code, language, spans, occupied);
+        AnalyzeNumbers(code, spans, occupied);
+        AnalyzeKeywords(code, language, spans, occupied);
 
-        return spans.OrderBy(s => s.Start).ThenBy(s => s.Length).ToList();
+        spans.Sort(static (a, b) =>
+        {
+            int cmp = a.Start.CompareTo(b.Start);
+            return cmp != 0 ? cmp : a.Length.CompareTo(b.Length);
+        });
+
+        return spans;
     }
+
+    #endregion
+
+    #region 注释分析
 
     /// <summary>
     /// 分析代码中的注释并添加到高亮区间列表。
@@ -197,8 +215,8 @@ public static class Highlight
     /// <param name="code">待分析的代码字符串。</param>
     /// <param name="language">脚本语言标识符。</param>
     /// <param name="spans">高亮区间列表，分析结果将追加到此列表。</param>
-    /// <param name="occupiedRanges">已占用的区间集合，用于避免重叠。</param>
-    private static void AnalyzeComments(string code, string language, List<HighlightSpan> spans, HashSet<(int Start, int End)> occupiedRanges)
+    /// <param name="occupied">字符级占用位图，用于避免与已识别 Token 重叠。</param>
+    private static void AnalyzeComments(string code, string language, List<HighlightSpan> spans, OccupancyMap occupied)
     {
         if (!_commentPatterns.TryGetValue(language, out CommentPattern pattern))
         {
@@ -219,11 +237,7 @@ public static class Highlight
                 int endIndex = code.IndexOf(pattern.MultiLineEnd, startIndex + pattern.MultiLineStart.Length, StringComparison.Ordinal);
                 int spanEnd = endIndex >= 0 ? endIndex + pattern.MultiLineEnd.Length : code.Length;
 
-                if (!IsRangeOccupied(startIndex, spanEnd, occupiedRanges))
-                {
-                    spans.Add(new HighlightSpan(startIndex, spanEnd - startIndex, TokenType.Comment));
-                    occupiedRanges.Add((startIndex, spanEnd));
-                }
+                TryAddSpan(spans, occupied, startIndex, spanEnd, TokenType.Comment);
 
                 searchStart = spanEnd;
             }
@@ -243,16 +257,16 @@ public static class Highlight
                 int lineEnd = code.IndexOf('\n', startIndex);
                 int spanEnd = lineEnd >= 0 ? lineEnd : code.Length;
 
-                if (!IsRangeOccupied(startIndex, spanEnd, occupiedRanges))
-                {
-                    spans.Add(new HighlightSpan(startIndex, spanEnd - startIndex, TokenType.Comment));
-                    occupiedRanges.Add((startIndex, spanEnd));
-                }
+                TryAddSpan(spans, occupied, startIndex, spanEnd, TokenType.Comment);
 
                 searchStart = spanEnd + 1;
             }
         }
     }
+
+    #endregion
+
+    #region 字符串分析
 
     /// <summary>
     /// 分析代码中的字符串字面量并添加到高亮区间列表。
@@ -260,8 +274,8 @@ public static class Highlight
     /// <param name="code">待分析的代码字符串。</param>
     /// <param name="language">脚本语言标识符。</param>
     /// <param name="spans">高亮区间列表，分析结果将追加到此列表。</param>
-    /// <param name="occupiedRanges">已占用的区间集合，用于避免重叠。</param>
-    private static void AnalyzeStrings(string code, string language, List<HighlightSpan> spans, HashSet<(int Start, int End)> occupiedRanges)
+    /// <param name="occupied">字符级占用位图，用于避免与已识别 Token 重叠。</param>
+    private static void AnalyzeStrings(string code, string language, List<HighlightSpan> spans, OccupancyMap occupied)
     {
         if (!_stringPatterns.TryGetValue(language, out StringPattern pattern))
         {
@@ -284,7 +298,7 @@ public static class Highlight
                         break;
                     }
 
-                    if (IsRangeOccupied(startIndex, startIndex + 1, occupiedRanges))
+                    if (occupied.IsOccupied(startIndex, startIndex + 1))
                     {
                         searchStart = startIndex + 1;
                         continue;
@@ -294,7 +308,7 @@ public static class Highlight
                     int spanEnd = endIndex >= 0 ? endIndex + endDelim.Length : code.Length;
 
                     spans.Add(new HighlightSpan(startIndex, spanEnd - startIndex, TokenType.String));
-                    occupiedRanges.Add((startIndex, spanEnd));
+                    occupied.Mark(startIndex, spanEnd);
 
                     searchStart = spanEnd;
                 }
@@ -312,7 +326,7 @@ public static class Highlight
                     break;
                 }
 
-                if (IsRangeOccupied(startIndex, startIndex + 1, occupiedRanges))
+                if (occupied.IsOccupied(startIndex, startIndex + 1))
                 {
                     searchStart = startIndex + 1;
                     continue;
@@ -321,7 +335,7 @@ public static class Highlight
                 int spanEnd = FindStringEnd(code, startIndex, delimiter, pattern.SupportsEscape);
 
                 spans.Add(new HighlightSpan(startIndex, spanEnd - startIndex, TokenType.String));
-                occupiedRanges.Add((startIndex, spanEnd));
+                occupied.Mark(startIndex, spanEnd);
 
                 searchStart = spanEnd;
             }
@@ -365,26 +379,27 @@ public static class Highlight
         return code.Length;
     }
 
+    #endregion
+
+    #region 数字分析
+
     /// <summary>
     /// 分析代码中的数字字面量并添加到高亮区间列表。
     /// </summary>
     /// <param name="code">待分析的代码字符串。</param>
     /// <param name="spans">高亮区间列表，分析结果将追加到此列表。</param>
-    /// <param name="occupiedRanges">已占用的区间集合，用于避免重叠。</param>
-    private static void AnalyzeNumbers(string code, List<HighlightSpan> spans, HashSet<(int Start, int End)> occupiedRanges)
+    /// <param name="occupied">字符级占用位图，用于避免与已识别 Token 重叠。</param>
+    private static void AnalyzeNumbers(string code, List<HighlightSpan> spans, OccupancyMap occupied)
     {
         foreach (Match match in _numberRegex.Matches(code))
         {
-            int start = match.Index;
-            int end = start + match.Length;
-
-            if (!IsRangeOccupied(start, end, occupiedRanges))
-            {
-                spans.Add(new HighlightSpan(start, match.Length, TokenType.Number));
-                occupiedRanges.Add((start, end));
-            }
+            TryAddSpan(spans, occupied, match.Index, match.Index + match.Length, TokenType.Number);
         }
     }
+
+    #endregion
+
+    #region 关键字分析
 
     /// <summary>
     /// 分析代码中的关键字并添加到高亮区间列表。
@@ -392,8 +407,8 @@ public static class Highlight
     /// <param name="code">待分析的代码字符串。</param>
     /// <param name="language">脚本语言标识符。</param>
     /// <param name="spans">高亮区间列表，分析结果将追加到此列表。</param>
-    /// <param name="occupiedRanges">已占用的区间集合，用于避免重叠。</param>
-    private static void AnalyzeKeywords(string code, string language, List<HighlightSpan> spans, HashSet<(int Start, int End)> occupiedRanges)
+    /// <param name="occupied">字符级占用位图，用于避免与已识别 Token 重叠。</param>
+    private static void AnalyzeKeywords(string code, string language, List<HighlightSpan> spans, OccupancyMap occupied)
     {
         if (!_keywords.TryGetValue(language, out string[]? keywords))
         {
@@ -417,15 +432,39 @@ public static class Highlight
                 bool isWordStart = index == 0 || !IsWordChar(code[index - 1]);
                 bool isWordEnd = index + keyword.Length >= code.Length || !IsWordChar(code[index + keyword.Length]);
 
-                if (isWordStart && isWordEnd && !IsRangeOccupied(index, index + keyword.Length, occupiedRanges))
+                if (isWordStart && isWordEnd)
                 {
-                    spans.Add(new HighlightSpan(index, keyword.Length, TokenType.Keyword));
-                    occupiedRanges.Add((index, index + keyword.Length));
+                    TryAddSpan(spans, occupied, index, index + keyword.Length, TokenType.Keyword);
                 }
 
                 searchStart = index + 1;
             }
         }
+    }
+
+    #endregion
+
+    #region 辅助方法
+
+    /// <summary>
+    /// 尝试将指定区间作为高亮 Token 添加到结果列表，仅在区间未被占用时生效。
+    /// </summary>
+    /// <param name="spans">高亮区间列表。</param>
+    /// <param name="occupied">字符级占用位图。</param>
+    /// <param name="start">区间起始位置。</param>
+    /// <param name="end">区间结束位置（不包含）。</param>
+    /// <param name="type">Token 类型。</param>
+    /// <returns>若成功添加则返回 true，区间被占用则返回 false。</returns>
+    private static bool TryAddSpan(List<HighlightSpan> spans, OccupancyMap occupied, int start, int end, TokenType type)
+    {
+        if (occupied.IsOccupied(start, end))
+        {
+            return false;
+        }
+
+        spans.Add(new HighlightSpan(start, end - start, type));
+        occupied.Mark(start, end);
+        return true;
     }
 
     /// <summary>
@@ -435,16 +474,71 @@ public static class Highlight
     /// <returns>若为单词字符则返回 true，否则返回 false。</returns>
     private static bool IsWordChar(char c) => char.IsLetterOrDigit(c) || c == '_';
 
+    #endregion
+
+    #region 私有类型
+
     /// <summary>
-    /// 判断指定区间是否与已占用区间重叠。
+    /// 字符级占用位图，以 O(区间长度) 复杂度判定任意区间是否已被高优先级 Token 占据。
     /// </summary>
-    /// <param name="start">区间起始位置。</param>
-    /// <param name="end">区间结束位置（不包含）。</param>
-    /// <param name="occupiedRanges">已占用的区间集合。</param>
-    /// <returns>若存在重叠则返回 true，否则返回 false。</returns>
-    private static bool IsRangeOccupied(int start, int end, HashSet<(int Start, int End)> occupiedRanges)
+    /// <remarks>
+    /// 替代原有的 <c>HashSet&lt;(int, int)&gt;</c> + LINQ <c>Any</c> 线性扫描方案。
+    /// 原方案对每次重叠检查需遍历所有已注册区间（O(已注册区间总数)），
+    /// 位图方案仅需遍历待检查区间内的字符位（O(待检查区间长度)），
+    /// 对于典型的短 Token（关键字、数字）检查开销为常数级。
+    ///
+    /// 内部持有 <c>bool[]</c> 引用类型字段，按值传递时共享同一数组实例。
+    /// 仅供 <see cref="Analyze"/> 方法内部使用，生命周期不超过单次分析调用。
+    /// </remarks>
+    private readonly struct OccupancyMap
     {
-        return occupiedRanges.Any(r => start < r.End && end > r.Start);
+        /// <summary>
+        /// 每个元素对应源代码中相同索引的字符，true 表示已被高优先级 Token 占据。
+        /// </summary>
+        private readonly bool[] _bits;
+
+        /// <summary>
+        /// 以指定长度初始化占用位图，所有位置初始为未占用。
+        /// </summary>
+        /// <param name="length">源代码字符数，决定位图容量。</param>
+        public OccupancyMap(int length)
+        {
+            _bits = new bool[length];
+        }
+
+        /// <summary>
+        /// 判断 [start, end) 区间内是否存在已占用的字符位置。
+        /// </summary>
+        /// <param name="start">区间起始位置（包含）。</param>
+        /// <param name="end">区间结束位置（不包含）。</param>
+        /// <returns>若区间内存在任意已占用位置则返回 true，否则返回 false。</returns>
+        public bool IsOccupied(int start, int end)
+        {
+            int clampedEnd = Math.Min(end, _bits.Length);
+            for (int i = start; i < clampedEnd; i++)
+            {
+                if (_bits[i])
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 将 [start, end) 区间内的所有字符位置标记为已占用。
+        /// </summary>
+        /// <param name="start">区间起始位置（包含）。</param>
+        /// <param name="end">区间结束位置（不包含）。</param>
+        public void Mark(int start, int end)
+        {
+            int clampedEnd = Math.Min(end, _bits.Length);
+            if (start < clampedEnd)
+            {
+                Array.Fill(_bits, true, start, clampedEnd - start);
+            }
+        }
     }
 
     /// <summary>
@@ -462,4 +556,6 @@ public static class Highlight
     /// <param name="SupportsEscape">是否支持反斜杠转义序列。</param>
     /// <param name="MultiLineDelimiters">多行字符串分隔符数组（成对出现：起始、结束），若不支持则为 null。</param>
     private readonly record struct StringPattern(char[] Delimiters, bool SupportsEscape, string[]? MultiLineDelimiters);
+
+    #endregion
 }

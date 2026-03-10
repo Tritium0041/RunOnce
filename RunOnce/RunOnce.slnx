@@ -1,15 +1,12 @@
 <Solution>
   <Configurations>
-    <Platform Name="ARM64" />
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
   <Project Path="../ShellExt/ShellExt.vcxproj" Id="63f37894-fd3d-489f-ab38-23c573e2bc75">
-    <Platform Solution="*|ARM64" Project="x64" />
   </Project>
   <Project Path="RunOnce.csproj">
     <BuildDependency Project="../ShellExt/ShellExt.vcxproj" />
-    <Platform Solution="*|ARM64" Project="ARM64" />
     <Platform Solution="*|x64" Project="x64" />
     <Platform Solution="*|x86" Project="x86" />
     <Deploy />

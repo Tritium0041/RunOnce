@@ -104,6 +104,8 @@ public sealed partial class Editor : Page
         EnsureTimerInitialized();
         CacheScrollViewer();
         InitializeWorkingDirectory();
+        UpdatePlaceholderText();
+        UpdatePlaceholderVisibility();
         CodeEditor.Focus(FocusState.Programmatic);
     }
 
@@ -294,6 +296,8 @@ public sealed partial class Editor : Page
         {
             return;
         }
+
+        UpdatePlaceholderVisibility();
 
         _updateTimer?.Stop();
         _updateTimer?.Start();
@@ -834,11 +838,31 @@ public sealed partial class Editor : Page
     }
 
     /// <summary>
+    /// 根据编辑器是否有内容更新占位提示的可见性。
+    /// </summary>
+    private void UpdatePlaceholderVisibility()
+    {
+        string text = GetPlainText();
+        PlaceholderText.Visibility = string.IsNullOrEmpty(text)
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
+    /// <summary>
+    /// 更新占位提示的本地化文本。
+    /// </summary>
+    private void UpdatePlaceholderText()
+    {
+        PlaceholderText.Text = Text.Localize("在此粘贴代码");
+    }
+
+    /// <summary>
     /// 刷新本地化文本，供 MainWindow 在语言切换后调用。
     /// </summary>
     public void RefreshLocalizedTexts()
     {
         ViewModel.RefreshLocalizedTexts();
+        UpdatePlaceholderText();
     }
 
     #endregion

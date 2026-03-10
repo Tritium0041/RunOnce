@@ -11,6 +11,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text.Json;
 using Windows.Storage;
@@ -233,6 +234,9 @@ public static class Config
     /// <summary>临时文件名前缀的默认值。</summary>
     public const string DefaultTempFilePrefix = "RunOnce_TMP";
 
+    /// <summary>临时文件名前缀的最大长度。</summary>
+    public const int MaxTempFilePrefixLength = 32;
+
     /// <summary>置信度阈值的默认值。</summary>
     public const double DefaultConfidenceThreshold = 0.50;
 
@@ -319,9 +323,28 @@ public static class Config
         set
         {
             ArgumentNullException.ThrowIfNull(value);
+
             if (string.IsNullOrWhiteSpace(value))
             {
                 throw new ArgumentException(Text.Localize("临时文件名前缀不能为空白字符串。"), nameof(value));
+            }
+
+            if (value.Length > MaxTempFilePrefixLength)
+            {
+                throw new ArgumentException(
+                    Text.Localize("临时文件名前缀长度不能超过 {0} 个字符。", MaxTempFilePrefixLength),
+                    nameof(value));
+            }
+
+            if (value.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            {
+                throw new ArgumentException(Text.Localize("临时文件名前缀不能包含非法文件名字符。"), nameof(value));
+            }
+
+            // Directory.EnumerateFiles(pattern) 会将 [] 解析为字符集合，导致匹配语义异常
+            if (value.Contains('[') || value.Contains(']'))
+            {
+                throw new ArgumentException(Text.Localize("临时文件名前缀不能包含字符 '[' 或 ']'。"), nameof(value));
             }
 
             lock (_syncLock)

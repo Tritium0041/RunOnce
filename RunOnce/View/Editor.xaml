@@ -40,35 +40,47 @@
         </Grid.RowDefinitions>
 
         <!-- 代码编辑器区域 -->
-        <RichEditBox
-            x:Name="CodeEditor"
-            Grid.Row="0"
-            AcceptsReturn="True"
-            IsSpellCheckEnabled="False"
-            TextWrapping="NoWrap"
-            FontFamily="Cascadia Code, Cascadia Mono, Consolas, Courier New, monospace"
-            FontSize="18"
-            BorderThickness="0"
-            CornerRadius="0"
-            Padding="4,0,4,0"
-            Background="Transparent"
-            BorderBrush="Transparent"
-            ScrollViewer.HorizontalScrollBarVisibility="Auto"
-            ScrollViewer.HorizontalScrollMode="Enabled"
-            ScrollViewer.VerticalScrollBarVisibility="Auto"
-            ScrollViewer.VerticalScrollMode="Enabled"
-            SelectionChanged="CodeEditor_SelectionChanged"
-            TextChanged="CodeEditor_TextChanged"
-            PreviewKeyDown="CodeEditor_PreviewKeyDown"
-            PointerPressed="CodeEditor_PointerPressed"
-            PointerReleased="CodeEditor_PointerReleased"
-            PointerCanceled="CodeEditor_PointerCanceled"
-            PointerCaptureLost="CodeEditor_PointerCaptureLost"
-            LostFocus="CodeEditor_LostFocus">
-            <RichEditBox.Resources>
-                <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
-            </RichEditBox.Resources>
-        </RichEditBox>
+        <Grid Grid.Row="0">
+            <RichEditBox
+                x:Name="CodeEditor"
+                AcceptsReturn="True"
+                IsSpellCheckEnabled="False"
+                TextWrapping="NoWrap"
+                FontFamily="Cascadia Code, Cascadia Mono, Consolas, Courier New, monospace"
+                FontSize="18"
+                BorderThickness="0"
+                CornerRadius="0"
+                Padding="4,0,4,0"
+                Background="Transparent"
+                BorderBrush="Transparent"
+                ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                ScrollViewer.HorizontalScrollMode="Enabled"
+                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                ScrollViewer.VerticalScrollMode="Enabled"
+                SelectionChanged="CodeEditor_SelectionChanged"
+                TextChanged="CodeEditor_TextChanged"
+                PreviewKeyDown="CodeEditor_PreviewKeyDown"
+                PointerPressed="CodeEditor_PointerPressed"
+                PointerReleased="CodeEditor_PointerReleased"
+                PointerCanceled="CodeEditor_PointerCanceled"
+                PointerCaptureLost="CodeEditor_PointerCaptureLost"
+                LostFocus="CodeEditor_LostFocus">
+                <RichEditBox.Resources>
+                    <Thickness x:Key="TextControlBorderThemeThicknessFocused">0</Thickness>
+                </RichEditBox.Resources>
+            </RichEditBox>
+
+            <!-- 占位提示文案 -->
+            <TextBlock
+                x:Name="PlaceholderText"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                IsHitTestVisible="False"
+                Opacity="0.35"
+                FontSize="16"
+                FontFamily="Cascadia Code, Cascadia Mono, Consolas, Courier New, monospace"
+                Visibility="Visible"/>
+        </Grid>
 
         <!-- 底部状态栏 -->
         <Grid

@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: Static/LanguageDetector.cs
- * @date: 2026-03-04
+ * @date: 2026-03-10
  */
 
 #nullable enable
@@ -86,8 +86,6 @@ public static class LanguageDetector
         ["lua"] = "lua",
         ["pwsh"] = "powershell",
         ["powershell"] = "powershell",
-        ["bash"] = "bat",
-        ["sh"] = "bat",
         ["nim"] = "nim",
         ["go"] = "go",
     };

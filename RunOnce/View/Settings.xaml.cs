@@ -347,6 +347,15 @@ public sealed partial class Settings : Page
         HyperlinkButton resetLink = BuildResetAdvancedLink(prefixTextBox, thresholdBox, commandTextBoxes);
         contentPanel.Children.Add(resetLink);
 
+        TextBlock errorText = new()
+        {
+            Foreground = new SolidColorBrush(Microsoft.UI.Colors.Red),
+            TextWrapping = TextWrapping.Wrap,
+            Visibility = Visibility.Collapsed,
+            Margin = new Thickness(0, 4, 0, 0),
+        };
+        contentPanel.Children.Add(errorText);
+
         ScrollViewer scrollViewer = new()
         {
             Content = contentPanel,
@@ -365,13 +374,24 @@ public sealed partial class Settings : Page
             XamlRoot = XamlRoot,
         };
 
-        dialog.PrimaryButtonClick += (_, _) =>
+        dialog.PrimaryButtonClick += (_, args) =>
         {
-            Dictionary<string, string> commands = commandTextBoxes.ToDictionary(
-                kvp => kvp.Key,
-                kvp => kvp.Value.Text);
+            errorText.Visibility = Visibility.Collapsed;
 
-            ViewModel.SaveAdvancedSettings(prefixTextBox.Text, thresholdBox.Value, commands);
+            try
+            {
+                Dictionary<string, string> commands = commandTextBoxes.ToDictionary(
+                    kvp => kvp.Key,
+                    kvp => kvp.Value.Text);
+
+                ViewModel.SaveAdvancedSettings(prefixTextBox.Text, thresholdBox.Value, commands);
+            }
+            catch (Exception ex)
+            {
+                args.Cancel = true;
+                errorText.Text = ex.Message;
+                errorText.Visibility = Visibility.Visible;
+            }
         };
 
         return dialog;
