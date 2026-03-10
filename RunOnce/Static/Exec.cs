@@ -194,6 +194,8 @@ public static class Exec
         string escapedPath = tempFilePath.Replace("'", "''");
         string exitPrompt = Text.Localize("按 Enter 键退出").Replace("'", "''");
 
+        bool autoClose = Config.AutoCloseTerminalOnCompletion;
+
         StringBuilder scriptBuilder = new();
 
         if (forceUtf8)
@@ -204,7 +206,12 @@ public static class Exec
 
         scriptBuilder.Append($"{languageCommand} '{escapedPath}'; ");
         scriptBuilder.Append("Write-Host ''; ");
-        scriptBuilder.Append($"Read-Host '{exitPrompt}'; ");
+
+        if (!autoClose)
+        {
+            scriptBuilder.Append($"Read-Host '{exitPrompt}'; ");
+        }
+
         scriptBuilder.Append($"Remove-Item -LiteralPath '{escapedPath}' -Force -ErrorAction SilentlyContinue");
 
         string encoded = Convert.ToBase64String(Encoding.Unicode.GetBytes(scriptBuilder.ToString()));
@@ -220,6 +227,8 @@ public static class Exec
     private static (string ShellExe, string ShellArgs) BuildCmdLaunchInfo(string languageCommand, string tempFilePath, bool forceUtf8)
     {
         string quotedPath = $"\"{tempFilePath}\"";
+        bool autoClose = Config.AutoCloseTerminalOnCompletion;
+
         StringBuilder commandBuilder = new();
 
         if (forceUtf8)
@@ -227,7 +236,14 @@ public static class Exec
             commandBuilder.Append("chcp 65001 >nul & ");
         }
 
-        commandBuilder.Append($"{languageCommand} {quotedPath} & echo. & pause & del /f /q {quotedPath}");
+        commandBuilder.Append($"{languageCommand} {quotedPath} & echo. & ");
+
+        if (!autoClose)
+        {
+            commandBuilder.Append("pause & ");
+        }
+
+        commandBuilder.Append($"del /f /q {quotedPath}");
 
         return ("cmd.exe", $"/c \"{commandBuilder}\"");
     }
