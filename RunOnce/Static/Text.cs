@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: Static/Text.cs
- * @date: 2026-03-09
+ * @date: 2026-03-10
  */
 
 #nullable enable
@@ -78,6 +78,8 @@ public static class Text
         ["控制语言选择框的显示时机"] = "Control when the language selector is displayed",
         ["执行时自动退出"] = "Auto Exit On Execute",
         ["开始执行代码后自动关闭应用程序"] = "Automatically close the application when execution starts",
+        ["运行完毕后自动关闭终端"] = "Auto close terminal on completion",
+        ["代码运行完成后自动关闭终端窗口"] = "Automatically close the terminal window when code execution completes",
         ["终端类型"] = "Terminal Type",
         ["选择启动的终端模拟器"] = "Choose the terminal emulator to launch",
         ["运行环境"] = "Shell",
@@ -139,6 +141,10 @@ public static class Text
 
         // 终端执行提示
         ["按 Enter 键退出"] = "Press Enter to exit",
+        [":一次运行:"] = ":RunOnce:",
+        [":一次运行: 运行于兼容模式. 完成后记得使用回车安全清理"] = ":RunOnce: Running in compatibility mode. Press Enter at the end for safe cleanup.",
+        [":一次运行: 摁下回车继续>>>"] = ":RunOnce: Press Enter to continue>>>",
+        [":一次运行: 摁下回车继续(否则无法清理)>>>"] = ":RunOnce: Press Enter to continue (otherwise cleanup will fail)>>>",
 
         // Config.cs 中的错误消息
         ["置信度阈值必须在 [0.0, 1.0] 范围内。"] = "Confidence threshold must be in the range [0.0, 1.0].",

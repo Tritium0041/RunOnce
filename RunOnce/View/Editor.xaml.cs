@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: View/Editor.xaml.cs
- * @date: 2026-03-09
+ * @date: 2026-03-10
  */
 
 #nullable enable
@@ -559,8 +559,18 @@ public sealed partial class Editor : Page
                     Content = Text.Localize("确定要执行此代码吗？"),
                     PrimaryButtonText = Text.Localize("执行"),
                     CloseButtonText = Text.Localize("取消"),
-                    DefaultButton = ContentDialogButton.Close,
+                    DefaultButton = ContentDialogButton.Primary,
                     XamlRoot = XamlRoot,
+                };
+
+                // Backspace 键取消确认对话框
+                confirmDialog.KeyDown += (_, args) =>
+                {
+                    if (args.Key == VirtualKey.Back)
+                    {
+                        args.Handled = true;
+                        confirmDialog.Hide();
+                    }
                 };
 
                 if (await confirmDialog.ShowAsync() is not ContentDialogResult.Primary)
@@ -659,6 +669,11 @@ public sealed partial class Editor : Page
     /// 用户选定的语言标识符；选择"自动检测"时返回 <see cref="AutoDetectToken"/>；
     /// 用户取消时返回 null。
     /// </returns>
+    /// <remarks>
+    /// 支持键盘操作：Enter 键确认当前选中项；Backspace 键取消并关闭对话框。
+    /// ListView 的 PreviewKeyDown 事件在列表自身处理前触发（隧道路由），
+    /// 可可靠拦截 Enter 键并通过标志位区分 Enter 确认与按钮点击取消。
+    /// </remarks>
     private async Task<string?> ShowLanguageSelectionDialogAsync(bool includeAutoDetect)
     {
         IReadOnlyList<DetectionResult> results = ViewModel.DetectionResults;
@@ -751,9 +766,32 @@ public sealed partial class Editor : Page
             XamlRoot = XamlRoot,
         };
 
+        // Enter 键在 ListView 中直接确认：PreviewKeyDown 于列表内部处理前触发（隧道路由），
+        // 可靠拦截 Enter 键，通过标志位区分 Enter 确认与按钮关闭两种路径。
+        bool confirmedViaEnter = false;
+        listView.PreviewKeyDown += (_, args) =>
+        {
+            if (args.Key == VirtualKey.Enter)
+            {
+                args.Handled = true;
+                confirmedViaEnter = true;
+                dialog.Hide();
+            }
+        };
+
+        // Backspace 键取消语言选择对话框
+        dialog.KeyDown += (_, args) =>
+        {
+            if (args.Key == VirtualKey.Back)
+            {
+                args.Handled = true;
+                dialog.Hide();
+            }
+        };
+
         ContentDialogResult result = await dialog.ShowAsync();
 
-        if (result is ContentDialogResult.Primary)
+        if (result is ContentDialogResult.Primary || confirmedViaEnter)
         {
             int selectedIndex = listView.SelectedIndex;
             if (selectedIndex >= 0 && selectedIndex < languageMap.Count)

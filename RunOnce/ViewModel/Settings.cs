@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: ViewModel/Settings.cs
- * @date: 2026-03-09
+ * @date: 2026-03-10
  */
 
 #nullable enable
@@ -122,6 +122,11 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// 执行时自动退出开关状态。
     /// </summary>
     private bool _autoExitOnExecution;
+
+    /// <summary>
+    /// 运行完毕后自动关闭终端开关状态。
+    /// </summary>
+    private bool _autoCloseTerminalOnCompletion;
 
     #endregion
 
@@ -392,6 +397,22 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         }
     }
 
+    /// <summary>
+    /// 代码运行完成后是否自动关闭终端窗口。
+    /// </summary>
+    /// <value>true 表示自动关闭终端，false 表示保留终端窗口。设置时同步写入 Config。</value>
+    public bool AutoCloseTerminalOnCompletion
+    {
+        get => _autoCloseTerminalOnCompletion;
+        set
+        {
+            if (SetProperty(ref _autoCloseTerminalOnCompletion, value) && !_isSuppressingChanges)
+            {
+                Config.AutoCloseTerminalOnCompletion = value;
+            }
+        }
+    }
+
     #endregion
 
     #region 关于信息属性（只读）
@@ -630,6 +651,7 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         SelectedScriptPlacementIndex = (int)Config.ScriptPlacement;
         ConfirmBeforeExecution = Config.ConfirmBeforeExecution;
         AutoExitOnExecution = Config.AutoExitOnExecution;
+        AutoCloseTerminalOnCompletion = Config.AutoCloseTerminalOnCompletion;
     }
 
     /// <summary>

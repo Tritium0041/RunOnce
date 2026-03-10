@@ -1,11 +1,10 @@
 ﻿/*
  * 脚本执行管理
- * 提供临时脚本文件生成、终端执行及临时文件清理功能
- * 临时文件根据配置存放于系统临时目录或工作目录，执行完成后由终端命令自动清理，应用启动时兜底清扫残留文件
- *
+ * 提供临时脚本文件生成、终端执行及临时文件清理功能，保障一次性脚本在配置目标位置执行完毕后自清理
+ * 
  * @author: WaterRun
  * @file: Static/Exec.cs
- * @date: 2026-03-09
+ * @date: 2026-03-10
  */
 
 #nullable enable
@@ -14,27 +13,20 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace RunOnce.Static;
 
-/// <summary>
-/// 脚本执行管理静态类，提供临时脚本文件生成与终端执行功能。
-/// </summary>
+/// <summary>一次性脚本执行相关的静态工具集合。</summary>
 /// <remarks>
-/// 不变量：
-/// 1) 临时文件根据 <see cref="Config.ScriptPlacement"/> 配置创建在系统临时目录或工作目录下；
-/// 2) 临时文件命名仅使用 <see cref="Config.TempFilePrefix"/>（单一真源，不包含任何旧前缀兼容）；
-/// 3) 文件名包含随机后缀以避免冲突；
-/// 4) 执行命令末尾包含清理指令以确保临时文件被删除。
-/// 线程安全：所有公开方法为线程安全，内部字典为只读。
-/// 副作用：会在文件系统创建临时文件，启动外部终端进程。
+/// 命名空间职责：封装涉及临时脚本创建、命令解释器启动与残留清理的业务逻辑，暴露给 RunOnce 运行期使用。
+/// 作者：WaterRun；最后修改时间：2026-03-10。
 /// </remarks>
 public static class Exec
 {
-    /// <summary>
-    /// 语言标识符到文件扩展名的映射字典，键为小写语言标识符，值为包含点号的扩展名。
-    /// </summary>
+    /// <summary>语言标识符到脚本扩展名的不可变映射字典。</summary>
+    /// <remarks>字典键为忽略大小写的语言名，值为包含前导点的扩展名，供 CreateTempFile 和外部查询使用。</remarks>
     private static readonly Dictionary<string, string> _languageExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
         ["bat"] = ".bat",
@@ -45,25 +37,22 @@ public static class Exec
         ["go"] = ".go",
     };
 
-    /// <summary>
-    /// 获取指定语言对应的文件扩展名。
-    /// </summary>
-    /// <param name="language">
-    /// 脚本语言标识符，必须是 <see cref="Config.SupportedLanguages"/> 中定义的有效值，不区分大小写。
-    /// 不允许为 null 或空白字符串。
-    /// </param>
-    /// <returns>该语言对应的文件扩展名，包含前导点号（如 ".py"）。</returns>
-    /// <exception cref="ArgumentNullException">当 language 为 null 时抛出。</exception>
-    /// <exception cref="ArgumentException">当 language 为空白字符串或不在支持列表中时抛出。</exception>
+    /// <summary>根据语言标识符获取对应的脚本文件扩展名。</summary>
+    /// <param name="language">语言标识符，必须是 <see cref="Config.SupportedLanguages"/> 中的有效值，不能为 null 或空白。</param>
+    /// <returns>含前导点的文件扩展名。</returns>
+    /// <exception cref="ArgumentNullException">当 <paramref name="language"/> 为 null 时。</exception>
+    /// <exception cref="ArgumentException">当 <paramref name="language"/> 为空白或不在支持列表内时。</exception>
     public static string GetFileExtension(string language)
     {
         ArgumentNullException.ThrowIfNull(language);
+
         if (string.IsNullOrWhiteSpace(language))
         {
             throw new ArgumentException(Text.Localize("语言标识符不能为空白字符串。"), nameof(language));
         }
 
         string normalizedLanguage = language.ToLowerInvariant();
+
         if (!_languageExtensions.TryGetValue(normalizedLanguage, out string? extension))
         {
             throw new ArgumentException(Text.Localize("不支持的语言标识符: {0}。", language), nameof(language));
@@ -72,34 +61,22 @@ public static class Exec
         return extension;
     }
 
-    /// <summary>
-    /// 获取所有支持语言的文件扩展名映射副本。
-    /// </summary>
-    /// <returns>包含所有语言及其对应文件扩展名的字典副本。</returns>
+    /// <summary>获取所有支持语言扩展名的副本，避免外部修改原始字典。</summary>
+    /// <returns>语言到扩展名的字典，对应键大小写忽略。</returns>
     public static Dictionary<string, string> GetAllFileExtensions()
     {
         return new Dictionary<string, string>(_languageExtensions, StringComparer.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// 根据配置生成临时脚本文件，启动终端执行脚本，执行完成后自动清理临时文件。
-    /// </summary>
-    /// <param name="code">要执行的脚本代码内容，不允许为 null 或空字符串。</param>
-    /// <param name="language">
-    /// 脚本语言标识符，必须是 <see cref="Config.SupportedLanguages"/> 中定义的有效值，不区分大小写。
-    /// 不允许为 null 或空白字符串。
-    /// </param>
-    /// <param name="workingDirectory">脚本执行的工作目录路径，不允许为 null 或空白字符串，目录必须存在。</param>
-    /// <exception cref="ArgumentNullException">当 code、language 或 workingDirectory 为 null 时抛出。</exception>
-    /// <exception cref="ArgumentException">当参数为空白字符串、language 不在支持列表中、或工作目录不存在时抛出。</exception>
-    /// <exception cref="IOException">当无法创建临时文件时抛出。</exception>
-    /// <exception cref="InvalidOperationException">当无法启动终端进程时抛出。</exception>
-    /// <remarks>
-    /// 此方法为 fire-and-forget 模式，启动终端进程后立即返回。
-    /// 临时文件的清理由终端命令自行完成，不依赖本程序的后续执行。
-    /// 当 <see cref="Config.ScriptPlacement"/> 为 EnsureCleanup 时文件创建在系统临时目录，
-    /// 为 EnsureCompatibility 时文件创建在工作目录。
-    /// </remarks>
+    /// <summary>生成临时脚本文件并在配置终端内执行，执行完成后依赖命令序列自清理。</summary>
+    /// <param name="code">脚本内容，不能为空并且已由调用者完成编码与转义。</param>
+    /// <param name="language">脚本语言标识符，必须在 <see cref="Config.SupportedLanguages"/> 中并且非空白。</param>
+    /// <param name="workingDirectory">执行工作目录，不能为空白且必须存在。</param>
+    /// <exception cref="ArgumentNullException">当任一参数为 null 时抛出。</exception>
+    /// <exception cref="ArgumentException">当任一参数不满足非空白或工作目录不存在时抛出。</exception>
+    /// <exception cref="IOException">当临时脚本文件无法在目标目录创建时抛出。</exception>
+    /// <exception cref="InvalidOperationException">当终端进程无法启动时抛出。</exception>
+    /// <remarks>线程安全：方法无共享可变状态。副作用：在文件系统创建临时文件并启动外部终端进程。</remarks>
     public static void Execute(string code, string language, string workingDirectory)
     {
         ArgumentNullException.ThrowIfNull(code);
@@ -110,14 +87,17 @@ public static class Exec
         {
             throw new ArgumentException(Text.Localize("代码内容不能为空。"), nameof(code));
         }
+
         if (string.IsNullOrWhiteSpace(language))
         {
             throw new ArgumentException(Text.Localize("语言标识符不能为空白字符串。"), nameof(language));
         }
+
         if (string.IsNullOrWhiteSpace(workingDirectory))
         {
             throw new ArgumentException(Text.Localize("工作目录不能为空白字符串。"), nameof(workingDirectory));
         }
+
         if (!Directory.Exists(workingDirectory))
         {
             throw new ArgumentException(Text.Localize("工作目录不存在: {0}。", workingDirectory), nameof(workingDirectory));
@@ -136,49 +116,33 @@ public static class Exec
         LaunchInTerminal(shellExe, shellArgs, workingDirectory);
     }
 
-    /// <summary>
-    /// 清理系统临时目录中由本应用创建的残留临时文件。
-    /// </summary>
-    /// <remarks>
-    /// 扫描 <see cref="Path.GetTempPath"/> 下所有以 <see cref="Config.TempFilePrefix"/> 开头的文件并尝试删除。
-    /// 被锁定的文件（正在被其他进程使用）会被静默跳过。
-    /// 仅清理系统临时目录中的残留文件；放置在工作目录中的文件不在此方法清理范围内。
-    /// 不包含任何旧前缀兼容清理逻辑。
-    /// 建议在应用启动时调用一次。
-    /// </remarks>
+    /// <summary>清理系统临时目录中所有以配置前缀开头的残留临时脚本文件。</summary>
+    /// <remarks>静默跳过被占用或无权限的文件，外部不依赖本方法的返回值，建议应用启动时调用。</remarks>
     public static void CleanupStaleTempFiles()
     {
-        try
-        {
-            string tempDir = Path.GetTempPath();
-            string prefix = Config.TempFilePrefix;
+        string tempDir = Path.GetTempPath();
+        string prefix = Config.TempFilePrefix;
+        IEnumerable<string> candidates = Directory.EnumerateFiles(tempDir, $"{prefix}*").Where(file => !string.IsNullOrEmpty(file));
 
-            foreach (string file in Directory.EnumerateFiles(tempDir, $"{prefix}*"))
-            {
-                try
-                {
-                    File.Delete(file);
-                }
-                catch
-                {
-                    // CLEANUP-001: 被锁定或无权限的文件静默跳过
-                }
-            }
-        }
-        catch
+        foreach (string file in candidates)
         {
-            // CLEANUP-002: 临时目录不可枚举时静默跳过
+            try
+            {
+                File.Delete(file);
+            }
+            catch
+            {
+                // 不允许抛出，故吞掉
+            }
         }
     }
 
-    /// <summary>
-    /// 在指定目录下创建临时脚本文件。
-    /// </summary>
-    /// <param name="code">脚本代码内容，已验证非空。</param>
-    /// <param name="language">脚本语言标识符，已验证有效。</param>
-    /// <param name="baseDirectory">临时文件的存放目录路径。</param>
-    /// <returns>创建的临时文件的完整路径。</returns>
-    /// <exception cref="IOException">当文件创建失败时抛出。</exception>
+    /// <summary>在指定目录下创建唯一命名的临时脚本文件。</summary>
+    /// <param name="code">经过验证非空的脚本内容。</param>
+    /// <param name="language">经过验证有效的语言标识符。</param>
+    /// <param name="baseDirectory">目标目录路径，由调用者控制位置。</param>
+    /// <returns>脚本文件的完整路径。</returns>
+    /// <exception cref="IOException">在写入过程中遇到 IO 或权限异常。</exception>
     private static string CreateTempFile(string code, string language, string baseDirectory)
     {
         string extension = GetFileExtension(language);
@@ -198,39 +162,34 @@ public static class Exec
         return filePath;
     }
 
-    /// <summary>
-    /// 根据当前 Shell 配置构建命令解释器的启动信息。
-    /// </summary>
-    /// <param name="languageCommand">语言执行指令（如 "python"、"cmd /c"）。</param>
-    /// <param name="tempFilePath">临时脚本文件的完整路径。</param>
-    /// <returns>Shell 可执行文件名与启动参数的元组。</returns>
+    /// <summary>构建终端与语言命令组合的 Shell 启动信息。</summary>
+    /// <param name="languageCommand">语言命令（例如 python、cmd scripts）。</param>
+    /// <param name="tempFilePath">要在终端内执行的脚本路径。</param>
+    /// <returns>Shell 可执行文件与启动参数组成的元组。</returns>
     private static (string ShellExe, string ShellArgs) BuildShellLaunchInfo(string languageCommand, string tempFilePath)
     {
         return Config.Shell switch
         {
-            ShellType.PowerShell => BuildPowerShellLaunchInfo("powershell.exe", languageCommand, tempFilePath, forceUtf8: false),
-            ShellType.PowerShellUtf8 => BuildPowerShellLaunchInfo("powershell.exe", languageCommand, tempFilePath, forceUtf8: true),
-            ShellType.Pwsh => BuildPowerShellLaunchInfo("pwsh.exe", languageCommand, tempFilePath, forceUtf8: false),
-            ShellType.Cmd => BuildCmdLaunchInfo(languageCommand, tempFilePath, forceUtf8: false),
-            ShellType.CmdUtf8 => BuildCmdLaunchInfo(languageCommand, tempFilePath, forceUtf8: true),
-            _ => BuildPowerShellLaunchInfo("powershell.exe", languageCommand, tempFilePath, forceUtf8: false),
+            ShellType.PowerShell => BuildPowerShellLaunchInfo("powershell.exe", languageCommand, tempFilePath, false),
+            ShellType.PowerShellUtf8 => BuildPowerShellLaunchInfo("powershell.exe", languageCommand, tempFilePath, true),
+            ShellType.Pwsh => BuildPowerShellLaunchInfo("pwsh.exe", languageCommand, tempFilePath, false),
+            ShellType.Cmd => BuildCmdLaunchInfo(languageCommand, tempFilePath, false),
+            ShellType.CmdUtf8 => BuildCmdLaunchInfo(languageCommand, tempFilePath, true),
+            _ => BuildPowerShellLaunchInfo("powershell.exe", languageCommand, tempFilePath, false),
         };
     }
 
-    /// <summary>
-    /// 构建 PowerShell 系列 Shell 的启动信息。
-    /// </summary>
-    /// <param name="exe">PowerShell 可执行文件名（powershell.exe 或 pwsh.exe）。</param>
-    /// <param name="languageCommand">语言执行指令。</param>
-    /// <param name="tempFilePath">临时脚本文件的完整路径。</param>
-    /// <param name="forceUtf8">是否在脚本开头强制设置 UTF-8 编码。</param>
-    /// <returns>Shell 可执行文件名与启动参数的元组。</returns>
-    /// <remarks>
-    /// 使用 -EncodedCommand 传递 Base64 编码的脚本，避免所有命令行引号转义问题。
-    /// 脚本执行顺序：可选 UTF-8 设置 → 执行语言指令 → 等待用户按 Enter → 删除临时文件。
-    /// </remarks>
+    /// <summary>为 PowerShell 系列 Shell 构建启动参数，使用 Base64 编码内容避免转义。</summary>
+    /// <param name="exe">PowerShell 可执行程序名。</param>
+    /// <param name="languageCommand">语言执行命令。</param>
+    /// <param name="tempFilePath">临时脚本路径。</param>
+    /// <param name="forceUtf8">是否在脚本内设置 UTF-8 编码。</param>
+    /// <returns>Shell 可执行文件名及带参数字符串。</returns>
     private static (string ShellExe, string ShellArgs) BuildPowerShellLaunchInfo(
-        string exe, string languageCommand, string tempFilePath, bool forceUtf8)
+        string exe,
+        string languageCommand,
+        string tempFilePath,
+        bool forceUtf8)
     {
         string escapedPath = tempFilePath.Replace("'", "''");
         string exitPrompt = Text.Localize("按 Enter 键退出").Replace("'", "''");
@@ -253,22 +212,14 @@ public static class Exec
         return (exe, $"-NoProfile -ExecutionPolicy Bypass -EncodedCommand {encoded}");
     }
 
-    /// <summary>
-    /// 构建 CMD 系列 Shell 的启动信息。
-    /// </summary>
-    /// <param name="languageCommand">语言执行指令。</param>
-    /// <param name="tempFilePath">临时脚本文件的完整路径。</param>
-    /// <param name="forceUtf8">是否在命令开头强制切换到 UTF-8 代码页。</param>
-    /// <returns>Shell 可执行文件名与启动参数的元组。</returns>
-    /// <remarks>
-    /// 命令执行顺序：可选 chcp 65001 → 执行语言指令 → pause 等待按键 → 删除临时文件。
-    /// 使用 /c 参数，命令序列执行完毕后 CMD 自动退出。
-    /// </remarks>
-    private static (string ShellExe, string ShellArgs) BuildCmdLaunchInfo(
-        string languageCommand, string tempFilePath, bool forceUtf8)
+    /// <summary>为 CMD 系列 Shell 构建启动参数，支持可选 UTF-8 代码页。</summary>
+    /// <param name="languageCommand">语言执行命令。</param>
+    /// <param name="tempFilePath">临时脚本路径。</param>
+    /// <param name="forceUtf8">是否在命令序列前设置 chcp 65001。</param>
+    /// <returns>Shell 可执行文件名与启动参数。</returns>
+    private static (string ShellExe, string ShellArgs) BuildCmdLaunchInfo(string languageCommand, string tempFilePath, bool forceUtf8)
     {
         string quotedPath = $"\"{tempFilePath}\"";
-
         StringBuilder commandBuilder = new();
 
         if (forceUtf8)
@@ -281,13 +232,11 @@ public static class Exec
         return ("cmd.exe", $"/c \"{commandBuilder}\"");
     }
 
-    /// <summary>
-    /// 根据配置的终端类型启动终端进程执行命令。
-    /// </summary>
-    /// <param name="shellExe">命令解释器可执行文件名。</param>
-    /// <param name="shellArgs">命令解释器的启动参数。</param>
-    /// <param name="workingDirectory">终端的工作目录。</param>
-    /// <exception cref="InvalidOperationException">当终端进程启动失败时抛出。</exception>
+    /// <summary>在配置终端中启动命令解释器。</summary>
+    /// <param name="shellExe">Shell 可执行文件名或路径。</param>
+    /// <param name="shellArgs">Shell 启动参数。</param>
+    /// <param name="workingDirectory">终端工作目录。</param>
+    /// <exception cref="InvalidOperationException">无法启动终端时抛出。</exception>
     private static void LaunchInTerminal(string shellExe, string shellArgs, string workingDirectory)
     {
         ProcessStartInfo startInfo = Config.Terminal switch
@@ -307,13 +256,11 @@ public static class Exec
         }
     }
 
-    /// <summary>
-    /// 创建 Windows Terminal 的进程启动信息。
-    /// </summary>
-    /// <param name="shellExe">命令解释器可执行文件名。</param>
-    /// <param name="shellArgs">命令解释器的启动参数。</param>
-    /// <param name="workingDirectory">工作目录路径。</param>
-    /// <returns>配置完成的 <see cref="ProcessStartInfo"/> 实例。</returns>
+    /// <summary>构建 Windows Terminal 启动信息。</summary>
+    /// <param name="shellExe">Shell 可执行文件名。</param>
+    /// <param name="shellArgs">Shell 参数。</param>
+    /// <param name="workingDirectory">目标工作目录。</param>
+    /// <returns>配置完成的 <see cref="ProcessStartInfo"/>。</returns>
     private static ProcessStartInfo CreateWindowsTerminalStartInfo(string shellExe, string shellArgs, string workingDirectory)
     {
         return new ProcessStartInfo
@@ -325,13 +272,11 @@ public static class Exec
         };
     }
 
-    /// <summary>
-    /// 创建传统终端（直接启动 Shell 进程）的进程启动信息。
-    /// </summary>
-    /// <param name="shellExe">命令解释器可执行文件名。</param>
-    /// <param name="shellArgs">命令解释器的启动参数。</param>
-    /// <param name="workingDirectory">工作目录路径。</param>
-    /// <returns>配置完成的 <see cref="ProcessStartInfo"/> 实例。</returns>
+    /// <summary>构建传统终端（直接启动 Shell）所需的启动信息。</summary>
+    /// <param name="shellExe">Shell 可执行文件名。</param>
+    /// <param name="shellArgs">Shell 参数。</param>
+    /// <param name="workingDirectory">工作目录。</param>
+    /// <returns>配置完成的 <see cref="ProcessStartInfo"/>。</returns>
     private static ProcessStartInfo CreateLegacyTerminalStartInfo(string shellExe, string shellArgs, string workingDirectory)
     {
         return new ProcessStartInfo

@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: Static/Config.cs
- * @date: 2026-03-09
+ * @date: 2026-03-10
  */
 
 #nullable enable
@@ -214,6 +214,9 @@ public static class Config
     /// <summary>执行时自动退出开关设置项的存储键名。</summary>
     private const string KeyAutoExitOnExecution = "AutoExitOnExecution";
 
+    /// <summary>运行完毕后自动关闭终端开关设置项的存储键名。</summary>
+    private const string KeyAutoCloseTerminalOnCompletion = "AutoCloseTerminalOnCompletion";
+
     /// <summary>终端类型设置项的存储键名。</summary>
     private const string KeyTerminalType = "TerminalType";
 
@@ -413,6 +416,33 @@ public static class Config
     }
 
     /// <summary>
+    /// 获取或设置代码运行完成后是否自动关闭终端窗口。
+    /// </summary>
+    /// <value>
+    /// 布尔值，true 表示执行完成后自动关闭终端，false 表示保留终端并等待用户确认。默认为 false（关闭）。
+    /// 设置时立即持久化到本地存储。
+    /// </value>
+    public static bool AutoCloseTerminalOnCompletion
+    {
+        get
+        {
+            lock (_syncLock)
+            {
+                return _localSettings.Values.TryGetValue(KeyAutoCloseTerminalOnCompletion, out object? value)
+                       && value is bool boolValue
+                       && boolValue;
+            }
+        }
+        set
+        {
+            lock (_syncLock)
+            {
+                _localSettings.Values[KeyAutoCloseTerminalOnCompletion] = value;
+            }
+        }
+    }
+
+    /// <summary>
     /// 获取或设置执行脚本时使用的终端模拟器类型。
     /// </summary>
     /// <value>
@@ -443,7 +473,7 @@ public static class Config
     /// 获取或设置执行脚本时使用的命令解释器类型。
     /// </summary>
     /// <value>
-    /// ShellType 枚举值，默认为 PowerShell（powershell.exe 5.x）。
+    /// ShellType 枚举值，默认为 PowerShellUtf8（powershell.exe 5.x，强制 UTF-8）。
     /// 设置时立即持久化到本地存储。
     /// </value>
     public static ShellType Shell
@@ -456,7 +486,7 @@ public static class Config
                        && value is int intValue
                        && Enum.IsDefined(typeof(ShellType), intValue)
                     ? (ShellType)intValue
-                    : ShellType.PowerShell;
+                    : ShellType.PowerShellUtf8;
             }
         }
         set
@@ -776,8 +806,8 @@ public static class Config
     /// </summary>
     /// <remarks>
     /// 包括主题风格、显示语言、临时文件前缀、语言选择框模式、执行确认开关、
-    /// 置信度阈值、执行时自动退出、终端类型、命令解释器类型、脚本放置行为以及所有语言执行指令。
-    /// 重置后立即持久化到本地存储。
+    /// 置信度阈值、执行时自动退出、执行完成自动关闭终端、终端类型、命令解释器类型、
+    /// 脚本放置行为以及所有语言执行指令。重置后立即持久化到本地存储。
     /// </remarks>
     public static void ResetAllSettings()
     {
@@ -790,8 +820,9 @@ public static class Config
             _localSettings.Values[KeyConfirmBeforeExecution] = false;
             _localSettings.Values[KeyConfidenceThreshold] = DefaultConfidenceThreshold;
             _localSettings.Values[KeyAutoExitOnExecution] = true;
+            _localSettings.Values[KeyAutoCloseTerminalOnCompletion] = false;
             _localSettings.Values[KeyTerminalType] = (int)TerminalType.WindowsTerminal;
-            _localSettings.Values[KeyShellType] = (int)ShellType.PowerShell;
+            _localSettings.Values[KeyShellType] = (int)ShellType.PowerShellUtf8;
             _localSettings.Values[KeyScriptPlacement] = (int)ScriptPlacementBehavior.EnsureCleanup;
             _languageCommands = CreateDefaultLanguageCommands();
             _languageCommandsLoaded = true;

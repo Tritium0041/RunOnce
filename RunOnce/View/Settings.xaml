@@ -259,6 +259,31 @@
                         IsOn="{x:Bind ViewModel.AutoExitOnExecution, Mode=TwoWay}"/>
                 </Grid>
 
+                <!-- 运行完毕后自动关闭终端 -->
+                <Grid
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1,0,1,1"
+                    CornerRadius="0"
+                    Padding="16,12,16,12"
+                    MinHeight="60">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                        <TextBlock x:Name="AutoCloseTerminalLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
+                        <TextBlock x:Name="AutoCloseTerminalDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                    <ToggleSwitch
+                        Grid.Column="1"
+                        VerticalAlignment="Center"
+                        OnContent="{x:Null}"
+                        OffContent="{x:Null}"
+                        MinWidth="0"
+                        IsOn="{x:Bind ViewModel.AutoCloseTerminalOnCompletion, Mode=TwoWay}"/>
+                </Grid>
+
                 <!-- 终端类型 -->
                 <Grid
                     Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"

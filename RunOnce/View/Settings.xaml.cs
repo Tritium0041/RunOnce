@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: View/Settings.xaml.cs
- * @date: 2026-03-09
+ * @date: 2026-03-10
  */
 
 #nullable enable
@@ -156,6 +156,8 @@ public sealed partial class Settings : Page
         SelectorModeDescription.Text = Text.Localize("控制语言选择框的显示时机");
         AutoExitLabel.Text = Text.Localize("执行时自动退出");
         AutoExitDescription.Text = Text.Localize("开始执行代码后自动关闭应用程序");
+        AutoCloseTerminalLabel.Text = Text.Localize("运行完毕后自动关闭终端");
+        AutoCloseTerminalDescription.Text = Text.Localize("代码运行完成后自动关闭终端窗口");
         TerminalLabel.Text = Text.Localize("终端类型");
         TerminalDescription.Text = Text.Localize("选择启动的终端模拟器");
         ShellLabel.Text = Text.Localize("运行环境");
