@@ -61,18 +61,6 @@ public enum LanguageSelectorMode
 }
 
 /// <summary>
-/// 终端类型枚举，定义执行脚本时使用的终端模拟器程序。
-/// </summary>
-public enum TerminalType
-{
-    /// <summary>Windows Terminal（wt.exe），现代终端体验。</summary>
-    WindowsTerminal,
-
-    /// <summary>传统命令提示符窗口。</summary>
-    Cmd,
-}
-
-/// <summary>
 /// 命令解释器类型枚举，定义执行脚本时使用的 Shell 环境。
 /// </summary>
 public enum ShellType
@@ -153,7 +141,7 @@ public static class Config
 
     /// <summary>软件的当前版本号。</summary>
     /// <value>遵循语义化版本规范，格式为 Major.Minor.Patch。</value>
-    public const string Version = "0.1.0";
+    public const string Version = "1.0.0";
 
     /// <summary>软件作者名称。</summary>
     /// <value>固定值 "WaterRun"。</value>
@@ -170,10 +158,6 @@ public static class Config
     /// <summary>Windows Terminal 可执行文件名。</summary>
     /// <value>固定值 "wt.exe"。</value>
     public const string WindowsTerminalExecutable = "wt.exe";
-
-    /// <summary>命令提示符可执行文件名。</summary>
-    /// <value>固定值 "cmd.exe"。</value>
-    public const string CmdExecutable = "cmd.exe";
 
     /// <summary>支持的脚本语言列表。</summary>
     /// <value>包含所有可配置执行指令的语言标识符，只读数组。</value>
@@ -218,9 +202,6 @@ public static class Config
     /// <summary>运行完毕后自动关闭终端开关设置项的存储键名。</summary>
     private const string KeyAutoCloseTerminalOnCompletion = "AutoCloseTerminalOnCompletion";
 
-    /// <summary>终端类型设置项的存储键名。</summary>
-    private const string KeyTerminalType = "TerminalType";
-
     /// <summary>命令解释器类型设置项的存储键名。</summary>
     private const string KeyShellType = "ShellType";
 
@@ -238,7 +219,7 @@ public static class Config
     public const int MaxTempFilePrefixLength = 32;
 
     /// <summary>置信度阈值的默认值。</summary>
-    public const double DefaultConfidenceThreshold = 0.50;
+    public const double DefaultConfidenceThreshold = 0.85;
 
     #endregion
 
@@ -466,33 +447,6 @@ public static class Config
     }
 
     /// <summary>
-    /// 获取或设置执行脚本时使用的终端模拟器类型。
-    /// </summary>
-    /// <value>
-    /// TerminalType 枚举值，默认为 WindowsTerminal（wt.exe）。
-    /// 设置时立即持久化到本地存储。
-    /// </value>
-    public static TerminalType Terminal
-    {
-        get
-        {
-            lock (_syncLock)
-            {
-                return _localSettings.Values.TryGetValue(KeyTerminalType, out object? value) && value is int intValue
-                    ? (TerminalType)intValue
-                    : TerminalType.WindowsTerminal;
-            }
-        }
-        set
-        {
-            lock (_syncLock)
-            {
-                _localSettings.Values[KeyTerminalType] = (int)value;
-            }
-        }
-    }
-
-    /// <summary>
     /// 获取或设置执行脚本时使用的命令解释器类型。
     /// </summary>
     /// <value>
@@ -549,19 +503,6 @@ public static class Config
             }
         }
     }
-
-    /// <summary>
-    /// 获取当前配置的终端可执行文件名。
-    /// </summary>
-    /// <value>
-    /// 根据 <see cref="Terminal"/> 设置返回对应的可执行文件名：wt.exe 或 cmd.exe。
-    /// </value>
-    public static string TerminalExecutable => Terminal switch
-    {
-        TerminalType.WindowsTerminal => WindowsTerminalExecutable,
-        TerminalType.Cmd => CmdExecutable,
-        _ => WindowsTerminalExecutable,
-    };
 
     /// <summary>
     /// 获取或设置语言识别的置信度阈值。
@@ -782,18 +723,6 @@ public static class Config
     };
 
     /// <summary>
-    /// 获取终端类型枚举值的本地化显示名称。
-    /// </summary>
-    /// <param name="terminal">终端类型枚举值。</param>
-    /// <returns>本地化后的显示名称字符串。</returns>
-    public static string GetTerminalDisplayName(TerminalType terminal) => terminal switch
-    {
-        TerminalType.WindowsTerminal => Text.Localize("Windows 终端"),
-        TerminalType.Cmd => Text.Localize("命令提示符"),
-        _ => terminal.ToString(),
-    };
-
-    /// <summary>
     /// 获取命令解释器类型枚举值的本地化显示名称。
     /// </summary>
     /// <param name="shell">命令解释器类型枚举值。</param>
@@ -844,7 +773,6 @@ public static class Config
             _localSettings.Values[KeyConfidenceThreshold] = DefaultConfidenceThreshold;
             _localSettings.Values[KeyAutoExitOnExecution] = true;
             _localSettings.Values[KeyAutoCloseTerminalOnCompletion] = false;
-            _localSettings.Values[KeyTerminalType] = (int)TerminalType.WindowsTerminal;
             _localSettings.Values[KeyShellType] = (int)ShellType.PowerShellUtf8;
             _localSettings.Values[KeyScriptPlacement] = (int)ScriptPlacementBehavior.EnsureCleanup;
             _languageCommands = CreateDefaultLanguageCommands();

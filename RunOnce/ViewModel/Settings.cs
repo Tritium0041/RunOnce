@@ -61,11 +61,6 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     private readonly ObservableCollection<string> _selectorModeOptions;
 
     /// <summary>
-    /// 终端类型 ComboBox 的显示选项列表。
-    /// </summary>
-    private readonly ObservableCollection<string> _terminalOptions;
-
-    /// <summary>
     /// 命令解释器类型 ComboBox 的显示选项列表。
     /// </summary>
     private readonly ObservableCollection<string> _shellOptions;
@@ -93,11 +88,6 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// 当前选中的语言选择框模式索引。
     /// </summary>
     private int _selectedSelectorModeIndex;
-
-    /// <summary>
-    /// 当前选中的终端类型索引。
-    /// </summary>
-    private int _selectedTerminalIndex;
 
     /// <summary>
     /// 当前选中的命令解释器类型索引。
@@ -181,7 +171,6 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         _themeOptions = new(Enum.GetValues<ThemeStyle>().Select(Config.GetThemeDisplayName));
         _languageOptions = new(Enum.GetValues<DisplayLanguage>().Select(Config.GetLanguageDisplayName));
         _selectorModeOptions = new(Enum.GetValues<LanguageSelectorMode>().Select(Config.GetSelectorModeDisplayName));
-        _terminalOptions = new(Enum.GetValues<TerminalType>().Select(Config.GetTerminalDisplayName));
         _shellOptions = new(Enum.GetValues<ShellType>().Select(Config.GetShellDisplayName));
         _scriptPlacementOptions = new(Enum.GetValues<ScriptPlacementBehavior>().Select(Config.GetScriptPlacementDisplayName));
 
@@ -206,11 +195,6 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
     /// 语言选择框模式 ComboBox 的本地化显示选项列表。
     /// </summary>
     public ObservableCollection<string> SelectorModeOptions => _selectorModeOptions;
-
-    /// <summary>
-    /// 终端类型 ComboBox 的本地化显示选项列表。
-    /// </summary>
-    public ObservableCollection<string> TerminalOptions => _terminalOptions;
 
     /// <summary>
     /// 命令解释器类型 ComboBox 的本地化显示选项列表。
@@ -273,22 +257,6 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
             if (SetProperty(ref _selectedSelectorModeIndex, value) && !_isSuppressingChanges && value >= 0)
             {
                 Config.SelectorMode = (LanguageSelectorMode)value;
-            }
-        }
-    }
-
-    /// <summary>
-    /// 终端类型 ComboBox 的当前选中索引。
-    /// </summary>
-    /// <value>对应 <see cref="TerminalType"/> 枚举的整型值。设置时同步写入 Config。</value>
-    public int SelectedTerminalIndex
-    {
-        get => _selectedTerminalIndex;
-        set
-        {
-            if (SetProperty(ref _selectedTerminalIndex, value) && !_isSuppressingChanges && value >= 0)
-            {
-                Config.Terminal = (TerminalType)value;
             }
         }
     }
@@ -611,7 +579,6 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         UpdateCollectionItems(_themeOptions, Enum.GetValues<ThemeStyle>().Select(Config.GetThemeDisplayName));
         UpdateCollectionItems(_languageOptions, Enum.GetValues<DisplayLanguage>().Select(Config.GetLanguageDisplayName));
         UpdateCollectionItems(_selectorModeOptions, Enum.GetValues<LanguageSelectorMode>().Select(Config.GetSelectorModeDisplayName));
-        UpdateCollectionItems(_terminalOptions, Enum.GetValues<TerminalType>().Select(Config.GetTerminalDisplayName));
         UpdateCollectionItems(_shellOptions, Enum.GetValues<ShellType>().Select(Config.GetShellDisplayName));
         UpdateCollectionItems(_scriptPlacementOptions, Enum.GetValues<ScriptPlacementBehavior>().Select(Config.GetScriptPlacementDisplayName));
     }
@@ -646,7 +613,6 @@ public sealed class SettingsViewModel : INotifyPropertyChanged
         SelectedThemeIndex = (int)Config.Theme;
         SelectedLanguageIndex = (int)Config.Language;
         SelectedSelectorModeIndex = (int)Config.SelectorMode;
-        SelectedTerminalIndex = (int)Config.Terminal;
         SelectedShellIndex = (int)Config.Shell;
         SelectedScriptPlacementIndex = (int)Config.ScriptPlacement;
         ConfirmBeforeExecution = Config.ConfirmBeforeExecution;

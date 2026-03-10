@@ -21,16 +21,20 @@
                         <AdaptiveTrigger MinWindowWidth="720"/>
                     </VisualState.StateTriggers>
                     <VisualState.Setters>
-                        <Setter Target="LeftColumn.Width" Value="280"/>
-                        <Setter Target="LeftPanel.Visibility" Value="Visible"/>
-                        <Setter Target="NarrowAboutSection.Visibility" Value="Collapsed"/>
+                        <Setter Target="LeftColumn.Width"
+                                Value="280"/>
+                        <Setter Target="LeftPanel.Visibility"
+                                Value="Visible"/>
+                        <Setter Target="NarrowAboutSection.Visibility"
+                                Value="Collapsed"/>
                     </VisualState.Setters>
                 </VisualState>
             </VisualStateGroup>
         </VisualStateManager.VisualStateGroups>
 
         <Grid.ColumnDefinitions>
-            <ColumnDefinition x:Name="LeftColumn" Width="0"/>
+            <ColumnDefinition x:Name="LeftColumn"
+                    Width="0"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
 
@@ -59,10 +63,10 @@
                     Margin="0,0,0,10"/>
 
                 <TextBlock Text="{x:Bind ViewModel.AppName, Mode=OneWay}"
-                    FontSize="20"
-                    FontWeight="SemiBold"
-                    HorizontalAlignment="Center"
-                    Margin="0,12,0,0"/>
+                           FontSize="20"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center"
+                           Margin="0,12,0,0"/>
 
                 <TextBlock
                     Text="{x:Bind ViewModel.VersionDisplay}"
@@ -143,9 +147,13 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock x:Name="ThemeLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
-                        <TextBlock x:Name="ThemeDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center">
+                        <TextBlock x:Name="ThemeLabel"
+                                Style="{ThemeResource BodyTextBlockStyle}"/>
+                        <TextBlock x:Name="ThemeDescription"
+                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                     <ComboBox
                         Grid.Column="1"
@@ -167,9 +175,13 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock x:Name="LanguageLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
-                        <TextBlock x:Name="LanguageDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center">
+                        <TextBlock x:Name="LanguageLabel"
+                                Style="{ThemeResource BodyTextBlockStyle}"/>
+                        <TextBlock x:Name="LanguageDescription"
+                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                     <ComboBox
                         Grid.Column="1"
@@ -197,9 +209,13 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock x:Name="ConfirmLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
-                        <TextBlock x:Name="ConfirmDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center">
+                        <TextBlock x:Name="ConfirmLabel"
+                                Style="{ThemeResource BodyTextBlockStyle}"/>
+                        <TextBlock x:Name="ConfirmDescription"
+                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                     <ToggleSwitch
                         Grid.Column="1"
@@ -222,9 +238,13 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock x:Name="SelectorModeLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
-                        <TextBlock x:Name="SelectorModeDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center">
+                        <TextBlock x:Name="SelectorModeLabel"
+                                Style="{ThemeResource BodyTextBlockStyle}"/>
+                        <TextBlock x:Name="SelectorModeDescription"
+                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                     <ComboBox
                         Grid.Column="1"
@@ -246,9 +266,13 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock x:Name="AutoExitLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
-                        <TextBlock x:Name="AutoExitDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center">
+                        <TextBlock x:Name="AutoExitLabel"
+                                Style="{ThemeResource BodyTextBlockStyle}"/>
+                        <TextBlock x:Name="AutoExitDescription"
+                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                     <ToggleSwitch
                         Grid.Column="1"
@@ -271,9 +295,13 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock x:Name="AutoCloseTerminalLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
-                        <TextBlock x:Name="AutoCloseTerminalDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center">
+                        <TextBlock x:Name="AutoCloseTerminalLabel"
+                                Style="{ThemeResource BodyTextBlockStyle}"/>
+                        <TextBlock x:Name="AutoCloseTerminalDescription"
+                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                     <ToggleSwitch
                         Grid.Column="1"
@@ -282,30 +310,6 @@
                         OffContent="{x:Null}"
                         MinWidth="0"
                         IsOn="{x:Bind ViewModel.AutoCloseTerminalOnCompletion, Mode=TwoWay}"/>
-                </Grid>
-
-                <!-- 终端类型 -->
-                <Grid
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-                    BorderThickness="1,0,1,1"
-                    CornerRadius="0"
-                    Padding="16,12,16,12"
-                    MinHeight="60">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock x:Name="TerminalLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
-                        <TextBlock x:Name="TerminalDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                    </StackPanel>
-                    <ComboBox
-                        Grid.Column="1"
-                        MinWidth="180"
-                        VerticalAlignment="Center"
-                        ItemsSource="{x:Bind ViewModel.TerminalOptions}"
-                        SelectedIndex="{x:Bind ViewModel.SelectedTerminalIndex, Mode=TwoWay}"/>
                 </Grid>
 
                 <!-- 运行环境 -->
@@ -320,9 +324,13 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock x:Name="ShellLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
-                        <TextBlock x:Name="ShellDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center">
+                        <TextBlock x:Name="ShellLabel"
+                                Style="{ThemeResource BodyTextBlockStyle}"/>
+                        <TextBlock x:Name="ShellDescription"
+                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                     <ComboBox
                         Grid.Column="1"
@@ -344,9 +352,13 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock x:Name="ScriptPlacementLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
-                        <TextBlock x:Name="ScriptPlacementDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center">
+                        <TextBlock x:Name="ScriptPlacementLabel"
+                                Style="{ThemeResource BodyTextBlockStyle}"/>
+                        <TextBlock x:Name="ScriptPlacementDescription"
+                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                     <ComboBox
                         Grid.Column="1"
@@ -368,9 +380,13 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock x:Name="ShortcutsLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
-                        <TextBlock x:Name="ShortcutsDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center">
+                        <TextBlock x:Name="ShortcutsLabel"
+                                Style="{ThemeResource BodyTextBlockStyle}"/>
+                        <TextBlock x:Name="ShortcutsDescription"
+                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                     <Button
                         x:Name="ShortcutsButton"
@@ -391,9 +407,13 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                        <TextBlock x:Name="AdvancedSettingsLabel" Style="{ThemeResource BodyTextBlockStyle}"/>
-                        <TextBlock x:Name="AdvancedSettingsDescription" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center">
+                        <TextBlock x:Name="AdvancedSettingsLabel"
+                                Style="{ThemeResource BodyTextBlockStyle}"/>
+                        <TextBlock x:Name="AdvancedSettingsDescription"
+                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                     <Button
                         x:Name="AdvancedSettingsButton"
@@ -403,7 +423,8 @@
                 </Grid>
 
                 <!-- ====== 窄屏关于区域 ====== -->
-                <StackPanel x:Name="NarrowAboutSection" Spacing="2">
+                <StackPanel x:Name="NarrowAboutSection"
+                        Spacing="2">
 
                     <TextBlock
                         x:Name="NarrowAboutSectionHeader"
@@ -421,8 +442,15 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock x:Name="NarrowAppNameLabel" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
-                        <TextBlock Text="{x:Bind ViewModel.AppName, Mode=OneWay}" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="NarrowAppNameLabel"
+                                Grid.Column="0"
+                                Style="{ThemeResource BodyTextBlockStyle}"
+                                VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind ViewModel.AppName, Mode=OneWay}"
+                                Grid.Column="1"
+                                Style="{ThemeResource BodyTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                VerticalAlignment="Center"/>
                     </Grid>
 
                     <Grid
@@ -436,8 +464,15 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock x:Name="NarrowVersionLabel" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
-                        <TextBlock Text="{x:Bind ViewModel.Version}" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="NarrowVersionLabel"
+                                Grid.Column="0"
+                                Style="{ThemeResource BodyTextBlockStyle}"
+                                VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind ViewModel.Version}"
+                                Grid.Column="1"
+                                Style="{ThemeResource BodyTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                VerticalAlignment="Center"/>
                     </Grid>
 
                     <Grid
@@ -451,8 +486,15 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock x:Name="NarrowBuildTimeLabel" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
-                        <TextBlock Text="{x:Bind ViewModel.BuildTimeText}" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="NarrowBuildTimeLabel"
+                                Grid.Column="0"
+                                Style="{ThemeResource BodyTextBlockStyle}"
+                                VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind ViewModel.BuildTimeText}"
+                                Grid.Column="1"
+                                Style="{ThemeResource BodyTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                VerticalAlignment="Center"/>
                     </Grid>
 
                     <Grid
@@ -466,8 +508,15 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock x:Name="NarrowAuthorLabel" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
-                        <TextBlock Text="{x:Bind ViewModel.Author}" Grid.Column="1" Style="{ThemeResource BodyTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="NarrowAuthorLabel"
+                                Grid.Column="0"
+                                Style="{ThemeResource BodyTextBlockStyle}"
+                                VerticalAlignment="Center"/>
+                        <TextBlock Text="{x:Bind ViewModel.Author}"
+                                Grid.Column="1"
+                                Style="{ThemeResource BodyTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                VerticalAlignment="Center"/>
                     </Grid>
 
                     <Grid
@@ -481,7 +530,10 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="GitHub" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
+                        <TextBlock Text="GitHub"
+                                Grid.Column="0"
+                                Style="{ThemeResource BodyTextBlockStyle}"
+                                VerticalAlignment="Center"/>
                         <HyperlinkButton
                             x:Name="NarrowGitHubLink"
                             Grid.Column="1"
@@ -502,7 +554,10 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock x:Name="NarrowStoreLabel" Grid.Column="0" Style="{ThemeResource BodyTextBlockStyle}" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="NarrowStoreLabel"
+                                Grid.Column="0"
+                                Style="{ThemeResource BodyTextBlockStyle}"
+                                VerticalAlignment="Center"/>
                         <HyperlinkButton
                             x:Name="NarrowStoreLink"
                             Grid.Column="1"

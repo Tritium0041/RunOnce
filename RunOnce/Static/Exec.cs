@@ -172,7 +172,7 @@ public static class Exec
         {
             ShellType.PowerShell => BuildPowerShellLaunchInfo("powershell.exe", languageCommand, tempFilePath, false),
             ShellType.PowerShellUtf8 => BuildPowerShellLaunchInfo("powershell.exe", languageCommand, tempFilePath, true),
-            ShellType.Pwsh => BuildPowerShellLaunchInfo("pwsh.exe", languageCommand, tempFilePath, false),
+            ShellType.Pwsh => BuildPowerShellLaunchInfo("pwsh.exe", languageCommand, tempFilePath, true),
             ShellType.Cmd => BuildCmdLaunchInfo(languageCommand, tempFilePath, false),
             ShellType.CmdUtf8 => BuildCmdLaunchInfo(languageCommand, tempFilePath, true),
             _ => BuildPowerShellLaunchInfo("powershell.exe", languageCommand, tempFilePath, false),
@@ -255,12 +255,7 @@ public static class Exec
     /// <exception cref="InvalidOperationException">无法启动终端时抛出。</exception>
     private static void LaunchInTerminal(string shellExe, string shellArgs, string workingDirectory)
     {
-        ProcessStartInfo startInfo = Config.Terminal switch
-        {
-            TerminalType.WindowsTerminal => CreateWindowsTerminalStartInfo(shellExe, shellArgs, workingDirectory),
-            TerminalType.Cmd => CreateLegacyTerminalStartInfo(shellExe, shellArgs, workingDirectory),
-            _ => CreateWindowsTerminalStartInfo(shellExe, shellArgs, workingDirectory),
-        };
+        ProcessStartInfo startInfo = CreateWindowsTerminalStartInfo(shellExe, shellArgs, workingDirectory);
 
         try
         {
@@ -283,23 +278,6 @@ public static class Exec
         {
             FileName = Config.WindowsTerminalExecutable,
             Arguments = $"-d \"{workingDirectory}\" {shellExe} {shellArgs}",
-            UseShellExecute = true,
-            CreateNoWindow = false,
-        };
-    }
-
-    /// <summary>构建传统终端（直接启动 Shell）所需的启动信息。</summary>
-    /// <param name="shellExe">Shell 可执行文件名。</param>
-    /// <param name="shellArgs">Shell 参数。</param>
-    /// <param name="workingDirectory">工作目录。</param>
-    /// <returns>配置完成的 <see cref="ProcessStartInfo"/>。</returns>
-    private static ProcessStartInfo CreateLegacyTerminalStartInfo(string shellExe, string shellArgs, string workingDirectory)
-    {
-        return new ProcessStartInfo
-        {
-            FileName = shellExe,
-            Arguments = shellArgs,
-            WorkingDirectory = workingDirectory,
             UseShellExecute = true,
             CreateNoWindow = false,
         };

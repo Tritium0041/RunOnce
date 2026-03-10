@@ -158,8 +158,6 @@ public sealed partial class Settings : Page
         AutoExitDescription.Text = Text.Localize("开始执行代码后自动关闭应用程序");
         AutoCloseTerminalLabel.Text = Text.Localize("运行完毕后自动关闭终端");
         AutoCloseTerminalDescription.Text = Text.Localize("代码运行完成后自动关闭终端窗口");
-        TerminalLabel.Text = Text.Localize("终端类型");
-        TerminalDescription.Text = Text.Localize("选择启动的终端模拟器");
         ShellLabel.Text = Text.Localize("运行环境");
         ShellDescription.Text = Text.Localize("选择执行代码使用的命令解释器");
         ScriptPlacementLabel.Text = Text.Localize("脚本放置行为");
