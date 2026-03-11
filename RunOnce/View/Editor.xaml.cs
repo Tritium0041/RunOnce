@@ -53,6 +53,11 @@ public sealed partial class Editor : Page
     private const string AutoDetectToken = "\0auto";
 
     /// <summary>
+    /// 长度限制。
+    /// </summary>
+    private const int MaxCodeLength = 20480;
+
+    /// <summary>
     /// 编辑器页面的 ViewModel 实例。
     /// </summary>
     public EditorViewModel ViewModel { get; }
@@ -71,6 +76,11 @@ public sealed partial class Editor : Page
     /// 标识当前是否正在执行流程中，防止重入。
     /// </summary>
     private bool _isExecuting;
+
+    /// <summary>
+    /// 标识当前是否展现限制对话框。
+    /// </summary>
+    private bool _isShowingLimitDialog;
 
     /// <summary>
     /// 标识当前是否处于鼠标拖动选区过程。
@@ -271,7 +281,27 @@ public sealed partial class Editor : Page
                 string text = await content.GetTextAsync();
                 if (!string.IsNullOrEmpty(text))
                 {
+                    string currentText = GetPlainText();
+                    int remaining = MaxCodeLength - currentText.Length;
+                    if (remaining <= 0)
+                    {
+                        _ = ShowCharacterLimitDialogAsync();
+                        return;
+                    }
+
+                    bool truncated = false;
+                    if (text.Length > remaining)
+                    {
+                        text = text[..remaining];
+                        truncated = true;
+                    }
+
                     CodeEditor.Document.Selection.TypeText(text);
+
+                    if (truncated)
+                    {
+                        _ = ShowCharacterLimitDialogAsync();
+                    }
                 }
             }
         }
@@ -295,14 +325,14 @@ public sealed partial class Editor : Page
 
         MenuFlyout flyout = new();
 
-        MenuFlyoutItem undoItem = new()
-        {
-            Text = Text.Localize("撤销"),
-            Icon = new SymbolIcon(Symbol.Undo),
-            KeyboardAcceleratorTextOverride = "Ctrl+Z",
-        };
-        undoItem.Click += (_, _) => CodeEditor.Document.Undo();
-        flyout.Items.Add(undoItem);
+        //MenuFlyoutItem undoItem = new()
+        //{
+        //    Text = Text.Localize("撤销"),
+        //    Icon = new SymbolIcon(Symbol.Undo),
+        //    KeyboardAcceleratorTextOverride = "Ctrl+Z",
+        //};
+        //undoItem.Click += (_, _) => CodeEditor.Document.Undo();
+        //flyout.Items.Add(undoItem);
 
         MenuFlyoutItem redoItem = new()
         {
@@ -459,8 +489,63 @@ public sealed partial class Editor : Page
 
         UpdatePlaceholderVisibility();
 
+        string text = GetPlainText();
+        if (text.Length > MaxCodeLength)
+        {
+            EnforceCharacterLimit(text);
+        }
+
         _updateTimer?.Stop();
         _updateTimer?.Start();
+    }
+
+    /// <summary>
+    /// 字符数量限制。
+    /// </summary>
+    /// <param name="text">源字符串。</param>
+    private void EnforceCharacterLimit(string text)
+    {
+        _isApplyingFormatting = true;
+        try
+        {
+            var range = CodeEditor.Document.GetRange(MaxCodeLength, text.Length);
+            range.Text = string.Empty;
+            CodeEditor.Document.Selection.SetRange(MaxCodeLength, MaxCodeLength);
+        }
+        finally
+        {
+            _isApplyingFormatting = false;
+        }
+
+        _ = ShowCharacterLimitDialogAsync();
+    }
+
+    /// <summary>
+    /// 显示字符数限制对话框。
+    /// </summary>
+    private async Task ShowCharacterLimitDialogAsync()
+    {
+        if (_isShowingLimitDialog || XamlRoot is null)
+        {
+            return;
+        }
+
+        _isShowingLimitDialog = true;
+        try
+        {
+            ContentDialog dialog = new()
+            {
+                Title = Text.Localize("超出输入限制"),
+                Content = Text.Localize("一次运行面向的是\"一次性\"的脚本. 你的脚本已经长到超出这个范围了."),
+                CloseButtonText = Text.Localize("确定"),
+                XamlRoot = XamlRoot,
+            };
+            await dialog.ShowAsync();
+        }
+        finally
+        {
+            _isShowingLimitDialog = false;
+        }
     }
 
     /// <summary>

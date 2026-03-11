@@ -140,6 +140,8 @@ public static class Text
         ["确定"] = "OK",
         ["执行"] = "Execute",
         ["确定要执行此代码吗？"] = "Are you sure you want to execute this code?",
+        ["超出输入限制"] = "Input Limit Exceeded",
+        ["一次运行面向的是\"一次性\"的脚本. 你的脚本已经长到超出这个范围了."] = "RunOnce is designed for \"one-time\" scripts. Your script has exceeded the length limit.",
 
         // 命令行参数
         ["命令行参数"] = "Command Line Arguments",

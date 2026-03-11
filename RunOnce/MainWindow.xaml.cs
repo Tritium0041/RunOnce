@@ -74,11 +74,6 @@ public sealed partial class MainWindow : Window
     private bool _isInSettingsPage;
 
     /// <summary>
-    /// 命令行参数指示点的呼吸动画故事板。
-    /// </summary>
-    private Storyboard? _breathingStoryboard;
-
-    /// <summary>
     /// 初始化主窗口实例。
     /// </summary>
     /// <remarks>
@@ -265,49 +260,12 @@ public sealed partial class MainWindow : Window
     }
 
     /// <summary>
-    /// 更新命令行参数指示点的可见性与呼吸动画。
+    /// 更新命令行参数指示点的可见性。
     /// </summary>
-    /// <param name="visible">true 表示显示指示点并启动动画，false 表示隐藏并停止动画。</param>
+    /// <param name="visible">true 表示显示指示点，false 表示隐藏。</param>
     public void UpdateArgsDotVisibility(bool visible)
     {
         ArgsDot.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
-
-        if (visible)
-        {
-            StartBreathingAnimation();
-        }
-        else
-        {
-            _breathingStoryboard?.Stop();
-        }
-    }
-
-    /// <summary>
-    /// 启动命令行参数指示点的呼吸动画。
-    /// </summary>
-    /// <remarks>
-    /// 使用正弦缓动在 1.0 与 0.3 之间循环切换透明度，模拟呼吸效果。
-    /// </remarks>
-    private void StartBreathingAnimation()
-    {
-        _breathingStoryboard?.Stop();
-
-        var animation = new DoubleAnimation
-        {
-            From = 1.0,
-            To = 0.3,
-            Duration = new Duration(TimeSpan.FromMilliseconds(1000)),
-            AutoReverse = true,
-            RepeatBehavior = RepeatBehavior.Forever,
-            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
-        };
-
-        Storyboard.SetTarget(animation, ArgsDot);
-        Storyboard.SetTargetProperty(animation, "Opacity");
-
-        _breathingStoryboard = new Storyboard();
-        _breathingStoryboard.Children.Add(animation);
-        _breathingStoryboard.Begin();
     }
 
     /// <summary>
