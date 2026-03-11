@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     @file: View/Editor.xaml
-    @date: 2026-03-09
+    @date: 2026-03-11
 -->
 <Page
     x:Class="RunOnce.View.Editor"
@@ -31,6 +31,7 @@
 
     <Page.KeyboardAccelerators>
         <KeyboardAccelerator Key="Enter" Modifiers="Control" Invoked="ExecuteAccelerator_Invoked"/>
+        <KeyboardAccelerator Key="E" Modifiers="Control" Invoked="ArgsAccelerator_Invoked"/>
     </Page.KeyboardAccelerators>
 
     <Grid Background="Transparent">
@@ -71,15 +72,26 @@
             </RichEditBox>
 
             <!-- 占位提示文案 -->
-            <TextBlock
-                x:Name="PlaceholderText"
+            <StackPanel
+                x:Name="PlaceholderPanel"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 IsHitTestVisible="False"
-                Opacity="0.35"
-                FontSize="16"
-                FontFamily="Cascadia Code, Cascadia Mono, Consolas, Courier New, monospace"
-                Visibility="Visible"/>
+                Visibility="Visible"
+                Spacing="6">
+                <TextBlock
+                    x:Name="PlaceholderText"
+                    HorizontalAlignment="Center"
+                    Opacity="0.35"
+                    FontSize="24"
+                    FontFamily="Cascadia Code, Cascadia Mono, Consolas, Courier New, monospace"/>
+                <TextBlock
+                    x:Name="PlaceholderSubText"
+                    HorizontalAlignment="Center"
+                    Opacity="0.25"
+                    FontSize="14"
+                    FontFamily="Cascadia Code, Cascadia Mono, Consolas, Courier New, monospace"/>
+            </StackPanel>
         </Grid>
 
         <!-- 底部状态栏 -->
@@ -120,4 +132,3 @@
         </Grid>
     </Grid>
 </Page>
-    

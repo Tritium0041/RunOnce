@@ -22,6 +22,7 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
             <!-- 返回按钮 -->
@@ -44,10 +45,34 @@
                 VerticalAlignment="Center"
                 Margin="12,0,0,0"/>
 
+            <!-- 命令行参数按钮 -->
+            <Button
+                x:Name="ArgsButton"
+                Grid.Column="2"
+                Style="{ThemeResource SubtleButtonStyle}"
+                Width="48"
+                Height="48"
+                Visibility="Visible"
+                Click="ArgsButton_Click">
+                <Grid>
+                    <FontIcon FontFamily="{ThemeResource SymbolThemeFontFamily}" Glyph="&#xE756;" FontSize="14"/>
+                    <Ellipse
+                        x:Name="ArgsDot"
+                        Width="6"
+                        Height="6"
+                        Fill="{ThemeResource AccentFillColorDefaultBrush}"
+                        Visibility="Collapsed"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Margin="0,-2,-2,0"
+                        IsHitTestVisible="False"/>
+                </Grid>
+            </Button>
+
             <!-- 运行按钮 -->
             <Button
                 x:Name="RunButton"
-                Grid.Column="2"
+                Grid.Column="3"
                 Style="{ThemeResource SubtleButtonStyle}"
                 Width="48"
                 Height="48"
@@ -59,7 +84,7 @@
             <!-- 设置按钮 -->
             <Button
                 x:Name="SettingsButton"
-                Grid.Column="3"
+                Grid.Column="4"
                 Style="{ThemeResource SubtleButtonStyle}"
                 Width="48"
                 Height="48"

@@ -1,10 +1,10 @@
 /*
  * 代码编辑器页面视图
- * 提供代码编辑、语法高亮、语言检测与脚本执行的 View 层实现
+ * 提供代码编辑、语法高亮、语言检测、自定义右键菜单、命令行参数与脚本执行的 View 层实现
  *
  * @author: WaterRun
  * @file: View/Editor.xaml.cs
- * @date: 2026-03-10
+ * @date: 2026-03-11
  */
 
 #nullable enable
@@ -13,6 +13,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using RunOnce.Static;
@@ -22,6 +23,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Windows.ApplicationModel.DataTransfer;
+using Windows.Foundation;
 using Windows.System;
 using Windows.UI;
 using Windows.UI.Core;
@@ -31,13 +34,14 @@ using TextGetOptions = Microsoft.UI.Text.TextGetOptions;
 namespace RunOnce.View;
 
 /// <summary>
-/// 代码编辑器页面，提供代码编辑、语法高亮、语言检测与执行功能。
+/// 代码编辑器页面，提供代码编辑、语法高亮、语言检测、自定义右键菜单、命令行参数与执行功能。
 /// </summary>
 /// <remarks>
 /// 不变量：<see cref="ViewModel"/> 在构造时创建，生命周期与页面一致；
 /// 语法高亮通过 80ms 去抖定时器异步应用，不阻塞用户输入；
 /// 在鼠标拖动选区期间暂停高亮，防止选区闪烁/丢失；
-/// 格式化操作前后保存并恢复 ScrollViewer 滚动位置，防止视口抖动。
+/// 格式化操作前后保存并恢复 ScrollViewer 滚动位置，防止视口抖动；
+/// 右键菜单已替换为仅包含代码编辑操作的自定义菜单，空编辑器下右键直接粘贴。
 /// 线程安全：所有成员必须在 UI 线程访问。
 /// 副作用：高亮操作修改 RichEditBox 的字符格式；执行操作创建临时文件并启动终端进程。
 /// </remarks>
@@ -103,6 +107,7 @@ public sealed partial class Editor : Page
     {
         EnsureTimerInitialized();
         CacheScrollViewer();
+        RegisterContextRequestedHandler();
         InitializeWorkingDirectory();
         UpdatePlaceholderText();
         UpdatePlaceholderVisibility();
@@ -156,6 +161,21 @@ public sealed partial class Editor : Page
     }
 
     /// <summary>
+    /// 注册 ContextRequested 事件处理程序以替换默认右键菜单。
+    /// </summary>
+    /// <remarks>
+    /// 使用 AddHandler 并设置 handledEventsToo 为 true，确保即使 RichEditBox
+    /// 内部已处理该事件，我们的处理程序仍然运行，从而完全接管右键菜单行为。
+    /// </remarks>
+    private void RegisterContextRequestedHandler()
+    {
+        CodeEditor.AddHandler(
+            UIElement.ContextRequestedEvent,
+            new TypedEventHandler<UIElement, ContextRequestedEventArgs>(CodeEditor_ContextRequested),
+            true);
+    }
+
+    /// <summary>
     /// 在可视树中递归查找指定类型的第一个后代元素。
     /// </summary>
     /// <typeparam name="T">要查找的元素类型。</typeparam>
@@ -205,6 +225,146 @@ public sealed partial class Editor : Page
             {
                 ViewModel.WorkingDirectory = candidate;
             }
+        }
+    }
+
+    #endregion
+
+    #region 自定义右键菜单
+
+    /// <summary>
+    /// 处理编辑器的右键菜单请求事件，替换默认的富文本格式菜单。
+    /// </summary>
+    /// <param name="sender">事件源对象。</param>
+    /// <param name="args">上下文请求事件参数。</param>
+    /// <remarks>
+    /// 空编辑器下直接粘贴剪贴板文本内容，非空编辑器下显示仅包含代码编辑操作的自定义菜单。
+    /// </remarks>
+    private async void CodeEditor_ContextRequested(UIElement sender, ContextRequestedEventArgs args)
+    {
+        args.Handled = true;
+
+        string text = GetPlainText();
+        if (string.IsNullOrEmpty(text))
+        {
+            await PasteTextFromClipboardAsync();
+            return;
+        }
+
+        ShowCodeContextMenu(args);
+    }
+
+    /// <summary>
+    /// 从系统剪贴板获取纯文本并粘贴到编辑器中。
+    /// </summary>
+    /// <remarks>
+    /// 仅在剪贴板包含文本内容时执行粘贴，否则静默忽略。
+    /// 粘贴后光标位于文本末尾。
+    /// </remarks>
+    private async Task PasteTextFromClipboardAsync()
+    {
+        try
+        {
+            DataPackageView content = Clipboard.GetContent();
+            if (content.Contains(StandardDataFormats.Text))
+            {
+                string text = await content.GetTextAsync();
+                if (!string.IsNullOrEmpty(text))
+                {
+                    CodeEditor.Document.Selection.TypeText(text);
+                }
+            }
+        }
+        catch
+        {
+            // CLIP-001: 剪贴板访问失败时静默忽略，不影响编辑器正常使用
+        }
+    }
+
+    /// <summary>
+    /// 构建并显示自定义代码编辑右键菜单。
+    /// </summary>
+    /// <param name="args">上下文请求事件参数，用于获取菜单弹出位置。</param>
+    /// <remarks>
+    /// 菜单仅包含代码编辑相关操作：撤销、重做、剪切、复制、粘贴、全选。
+    /// 剪切和复制在无文本选区时自动禁用。
+    /// </remarks>
+    private void ShowCodeContextMenu(ContextRequestedEventArgs args)
+    {
+        bool hasSelection = CodeEditor.Document.Selection.StartPosition != CodeEditor.Document.Selection.EndPosition;
+
+        MenuFlyout flyout = new();
+
+        MenuFlyoutItem undoItem = new()
+        {
+            Text = Text.Localize("撤销"),
+            Icon = new SymbolIcon(Symbol.Undo),
+            KeyboardAcceleratorTextOverride = "Ctrl+Z",
+        };
+        undoItem.Click += (_, _) => CodeEditor.Document.Undo();
+        flyout.Items.Add(undoItem);
+
+        MenuFlyoutItem redoItem = new()
+        {
+            Text = Text.Localize("重做"),
+            Icon = new SymbolIcon(Symbol.Redo),
+            KeyboardAcceleratorTextOverride = "Ctrl+Y",
+        };
+        redoItem.Click += (_, _) => CodeEditor.Document.Redo();
+        flyout.Items.Add(redoItem);
+
+        flyout.Items.Add(new MenuFlyoutSeparator());
+
+        MenuFlyoutItem cutItem = new()
+        {
+            Text = Text.Localize("剪切"),
+            Icon = new SymbolIcon(Symbol.Cut),
+            KeyboardAcceleratorTextOverride = "Ctrl+X",
+            IsEnabled = hasSelection,
+        };
+        cutItem.Click += (_, _) => CodeEditor.Document.Selection.Cut();
+        flyout.Items.Add(cutItem);
+
+        MenuFlyoutItem copyItem = new()
+        {
+            Text = Text.Localize("复制"),
+            Icon = new SymbolIcon(Symbol.Copy),
+            KeyboardAcceleratorTextOverride = "Ctrl+C",
+            IsEnabled = hasSelection,
+        };
+        copyItem.Click += (_, _) => CodeEditor.Document.Selection.Copy();
+        flyout.Items.Add(copyItem);
+
+        MenuFlyoutItem pasteItem = new()
+        {
+            Text = Text.Localize("粘贴"),
+            Icon = new SymbolIcon(Symbol.Paste),
+            KeyboardAcceleratorTextOverride = "Ctrl+V",
+        };
+        pasteItem.Click += (_, _) => CodeEditor.Document.Selection.Paste(0);
+        flyout.Items.Add(pasteItem);
+
+        flyout.Items.Add(new MenuFlyoutSeparator());
+
+        MenuFlyoutItem selectAllItem = new()
+        {
+            Text = Text.Localize("全选"),
+            KeyboardAcceleratorTextOverride = "Ctrl+A",
+        };
+        selectAllItem.Click += (_, _) =>
+        {
+            string t = GetPlainText();
+            CodeEditor.Document.Selection.SetRange(0, t.Length);
+        };
+        flyout.Items.Add(selectAllItem);
+
+        if (args.TryGetPosition(CodeEditor, out Windows.Foundation.Point point))
+        {
+            flyout.ShowAt(CodeEditor, new FlyoutShowOptions { Position = point });
+        }
+        else
+        {
+            flyout.ShowAt(CodeEditor);
         }
     }
 
@@ -342,24 +502,40 @@ public sealed partial class Editor : Page
     #region 键盘处理
 
     /// <summary>
-    /// 处理编辑器的按键预览事件，拦截 Ctrl+Enter 和 Tab 键。
+    /// 处理编辑器的按键预览事件，拦截 Ctrl+Enter、Ctrl+E、Ctrl+B/I/U 和 Tab 键。
     /// </summary>
     /// <param name="sender">事件源对象。</param>
     /// <param name="e">按键路由事件参数。</param>
     /// <remarks>
     /// PreviewKeyDown 在 RichEditBox 自身处理按键之前触发，
-    /// 可以可靠拦截 Ctrl+Enter（阻止 RichEditBox 将其解释为段落换行）
+    /// 可以可靠拦截 Ctrl+Enter（阻止 RichEditBox 将其解释为段落换行）、
+    /// Ctrl+E（打开命令行参数对话框）、Ctrl+B/I/U（阻止富文本格式操作）
     /// 以及 Tab（实现自定义缩进功能）。
     /// </remarks>
     private void CodeEditor_PreviewKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key == VirtualKey.Enter)
+        CoreVirtualKeyStates ctrlState = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control);
+        bool isCtrlDown = (ctrlState & CoreVirtualKeyStates.Down) != 0;
+
+        if (isCtrlDown)
         {
-            CoreVirtualKeyStates ctrlState = InputKeyboardSource.GetKeyStateForCurrentThread(VirtualKey.Control);
-            if ((ctrlState & CoreVirtualKeyStates.Down) != 0)
+            if (e.Key == VirtualKey.Enter)
             {
                 e.Handled = true;
                 HandleExecuteRequest();
+                return;
+            }
+
+            if (e.Key == VirtualKey.E)
+            {
+                e.Handled = true;
+                _ = HandleArgsRequestAsync();
+                return;
+            }
+
+            if (e.Key is VirtualKey.B or VirtualKey.I or VirtualKey.U)
+            {
+                e.Handled = true;
                 return;
             }
         }
@@ -391,6 +567,17 @@ public sealed partial class Editor : Page
     {
         args.Handled = true;
         HandleExecuteRequest();
+    }
+
+    /// <summary>
+    /// 处理 Ctrl+E 快捷键，打开命令行参数对话框（Page 级后备，当 RichEditBox 未聚焦时生效）。
+    /// </summary>
+    /// <param name="sender">快捷键加速器对象。</param>
+    /// <param name="args">快捷键调用事件参数。</param>
+    private void ArgsAccelerator_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        _ = HandleArgsRequestAsync();
     }
 
     /// <summary>
@@ -527,6 +714,81 @@ public sealed partial class Editor : Page
 
     #endregion
 
+    #region 命令行参数
+
+    /// <summary>
+    /// 显示命令行参数输入对话框，供用户设置传递给脚本的参数。
+    /// </summary>
+    /// <returns>表示异步对话框操作的任务。</returns>
+    /// <remarks>
+    /// 参数仅在内存中保持，不持久化存储，应用关闭即丢失。
+    /// 支持 Enter 键确认、"清除"按钮清空参数。
+    /// 对话框关闭后通知 MainWindow 更新指示点状态。
+    /// </remarks>
+    public async Task HandleArgsRequestAsync()
+    {
+        if (XamlRoot is null)
+        {
+            return;
+        }
+
+        TextBox argsTextBox = new()
+        {
+            Text = ViewModel.CommandLineArguments,
+            PlaceholderText = "e.g. --input data.txt --verbose",
+            AcceptsReturn = false,
+            MinWidth = 400,
+        };
+
+        ContentDialog dialog = new()
+        {
+            Title = Text.Localize("命令行参数"),
+            Content = argsTextBox,
+            PrimaryButtonText = Text.Localize("确定"),
+            SecondaryButtonText = Text.Localize("清除"),
+            CloseButtonText = Text.Localize("取消"),
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot,
+        };
+
+        bool confirmedViaEnter = false;
+        argsTextBox.PreviewKeyDown += (_, keyArgs) =>
+        {
+            if (keyArgs.Key == VirtualKey.Enter)
+            {
+                keyArgs.Handled = true;
+                confirmedViaEnter = true;
+                dialog.Hide();
+            }
+        };
+
+        ContentDialogResult result = await dialog.ShowAsync();
+
+        if (result is ContentDialogResult.Primary || confirmedViaEnter)
+        {
+            ViewModel.CommandLineArguments = argsTextBox.Text;
+        }
+        else if (result is ContentDialogResult.Secondary)
+        {
+            ViewModel.CommandLineArguments = string.Empty;
+        }
+
+        NotifyMainWindowArgsDotChanged();
+    }
+
+    /// <summary>
+    /// 通知 MainWindow 更新命令行参数指示点的可见性。
+    /// </summary>
+    private void NotifyMainWindowArgsDotChanged()
+    {
+        if (Application.Current is App { MainWindow: MainWindow mw })
+        {
+            mw.UpdateArgsDotVisibility(ViewModel.HasCommandLineArguments);
+        }
+    }
+
+    #endregion
+
     #region 执行流程
 
     /// <summary>
@@ -567,7 +829,6 @@ public sealed partial class Editor : Page
                     XamlRoot = XamlRoot,
                 };
 
-                // Backspace 键取消确认对话框
                 confirmDialog.KeyDown += (_, args) =>
                 {
                     if (args.Key == VirtualKey.Back)
@@ -675,8 +936,6 @@ public sealed partial class Editor : Page
     /// </returns>
     /// <remarks>
     /// 支持键盘操作：Enter 键确认当前选中项；Backspace 键取消并关闭对话框。
-    /// ListView 的 PreviewKeyDown 事件在列表自身处理前触发（隧道路由），
-    /// 可可靠拦截 Enter 键并通过标志位区分 Enter 确认与按钮点击取消。
     /// </remarks>
     private async Task<string?> ShowLanguageSelectionDialogAsync(bool includeAutoDetect)
     {
@@ -770,8 +1029,6 @@ public sealed partial class Editor : Page
             XamlRoot = XamlRoot,
         };
 
-        // Enter 键在 ListView 中直接确认：PreviewKeyDown 于列表内部处理前触发（隧道路由），
-        // 可靠拦截 Enter 键，通过标志位区分 Enter 确认与按钮关闭两种路径。
         bool confirmedViaEnter = false;
         listView.PreviewKeyDown += (_, args) =>
         {
@@ -783,7 +1040,6 @@ public sealed partial class Editor : Page
             }
         };
 
-        // Backspace 键取消语言选择对话框
         dialog.KeyDown += (_, args) =>
         {
             if (args.Key == VirtualKey.Back)
@@ -843,7 +1099,7 @@ public sealed partial class Editor : Page
     private void UpdatePlaceholderVisibility()
     {
         string text = GetPlainText();
-        PlaceholderText.Visibility = string.IsNullOrEmpty(text)
+        PlaceholderPanel.Visibility = string.IsNullOrEmpty(text)
             ? Visibility.Visible
             : Visibility.Collapsed;
     }
@@ -854,6 +1110,7 @@ public sealed partial class Editor : Page
     private void UpdatePlaceholderText()
     {
         PlaceholderText.Text = Text.Localize("在此粘贴代码");
+        PlaceholderSubText.Text = Text.Localize("右键或Ctrl+V");
     }
 
     /// <summary>

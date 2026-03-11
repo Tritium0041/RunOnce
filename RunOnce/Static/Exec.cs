@@ -1,10 +1,10 @@
 ﻿/*
  * 脚本执行管理
- * 提供临时脚本文件生成、终端执行及临时文件清理功能，保障一次性脚本在配置目标位置执行完毕后自清理
- * 
+ * 提供临时脚本文件生成、终端执行及临时文件清理功能，支持命令行参数传递
+ *
  * @author: WaterRun
  * @file: Static/Exec.cs
- * @date: 2026-03-10
+ * @date: 2026-03-11
  */
 
 #nullable enable
@@ -21,7 +21,6 @@ namespace RunOnce.Static;
 /// <summary>一次性脚本执行相关的静态工具集合。</summary>
 /// <remarks>
 /// 命名空间职责：封装涉及临时脚本创建、命令解释器启动与残留清理的业务逻辑，暴露给 RunOnce 运行期使用。
-/// 作者：WaterRun；最后修改时间：2026-03-10。
 /// </remarks>
 public static class Exec
 {
@@ -72,12 +71,13 @@ public static class Exec
     /// <param name="code">脚本内容，不能为空并且已由调用者完成编码与转义。</param>
     /// <param name="language">脚本语言标识符，必须在 <see cref="Config.SupportedLanguages"/> 中并且非空白。</param>
     /// <param name="workingDirectory">执行工作目录，不能为空白且必须存在。</param>
-    /// <exception cref="ArgumentNullException">当任一参数为 null 时抛出。</exception>
+    /// <param name="arguments">传递给脚本的命令行参数，为 null 或空白时不传递参数。</param>
+    /// <exception cref="ArgumentNullException">当 code、language 或 workingDirectory 为 null 时抛出。</exception>
     /// <exception cref="ArgumentException">当任一参数不满足非空白或工作目录不存在时抛出。</exception>
     /// <exception cref="IOException">当临时脚本文件无法在目标目录创建时抛出。</exception>
     /// <exception cref="InvalidOperationException">当终端进程无法启动时抛出。</exception>
     /// <remarks>线程安全：方法无共享可变状态。副作用：在文件系统创建临时文件并启动外部终端进程。</remarks>
-    public static void Execute(string code, string language, string workingDirectory)
+    public static void Execute(string code, string language, string workingDirectory, string? arguments = null)
     {
         ArgumentNullException.ThrowIfNull(code);
         ArgumentNullException.ThrowIfNull(language);
@@ -111,7 +111,8 @@ public static class Exec
 
         string tempFilePath = CreateTempFile(code, language, tempFileDirectory);
         string languageCommand = Config.GetLanguageCommand(language);
-        (string shellExe, string shellArgs) = BuildShellLaunchInfo(languageCommand, tempFilePath);
+        string? sanitizedArgs = string.IsNullOrWhiteSpace(arguments) ? null : arguments;
+        (string shellExe, string shellArgs) = BuildShellLaunchInfo(languageCommand, tempFilePath, sanitizedArgs);
 
         LaunchInTerminal(shellExe, shellArgs, workingDirectory);
     }
@@ -165,17 +166,18 @@ public static class Exec
     /// <summary>构建终端与语言命令组合的 Shell 启动信息。</summary>
     /// <param name="languageCommand">语言命令（例如 python、cmd scripts）。</param>
     /// <param name="tempFilePath">要在终端内执行的脚本路径。</param>
+    /// <param name="arguments">传递给脚本的命令行参数，为 null 时不传递。</param>
     /// <returns>Shell 可执行文件与启动参数组成的元组。</returns>
-    private static (string ShellExe, string ShellArgs) BuildShellLaunchInfo(string languageCommand, string tempFilePath)
+    private static (string ShellExe, string ShellArgs) BuildShellLaunchInfo(string languageCommand, string tempFilePath, string? arguments)
     {
         return Config.Shell switch
         {
-            ShellType.PowerShell => BuildPowerShellLaunchInfo("powershell.exe", languageCommand, tempFilePath, false),
-            ShellType.PowerShellUtf8 => BuildPowerShellLaunchInfo("powershell.exe", languageCommand, tempFilePath, true),
-            ShellType.Pwsh => BuildPowerShellLaunchInfo("pwsh.exe", languageCommand, tempFilePath, true),
-            ShellType.Cmd => BuildCmdLaunchInfo(languageCommand, tempFilePath, false),
-            ShellType.CmdUtf8 => BuildCmdLaunchInfo(languageCommand, tempFilePath, true),
-            _ => BuildPowerShellLaunchInfo("powershell.exe", languageCommand, tempFilePath, false),
+            ShellType.PowerShell => BuildPowerShellLaunchInfo("powershell.exe", languageCommand, tempFilePath, false, arguments),
+            ShellType.PowerShellUtf8 => BuildPowerShellLaunchInfo("powershell.exe", languageCommand, tempFilePath, true, arguments),
+            ShellType.Pwsh => BuildPowerShellLaunchInfo("pwsh.exe", languageCommand, tempFilePath, true, arguments),
+            ShellType.Cmd => BuildCmdLaunchInfo(languageCommand, tempFilePath, false, arguments),
+            ShellType.CmdUtf8 => BuildCmdLaunchInfo(languageCommand, tempFilePath, true, arguments),
+            _ => BuildPowerShellLaunchInfo("powershell.exe", languageCommand, tempFilePath, false, arguments),
         };
     }
 
@@ -184,12 +186,14 @@ public static class Exec
     /// <param name="languageCommand">语言执行命令。</param>
     /// <param name="tempFilePath">临时脚本路径。</param>
     /// <param name="forceUtf8">是否在脚本内设置 UTF-8 编码。</param>
+    /// <param name="arguments">传递给脚本的命令行参数，为 null 时不传递。</param>
     /// <returns>Shell 可执行文件名及带参数字符串。</returns>
     private static (string ShellExe, string ShellArgs) BuildPowerShellLaunchInfo(
         string exe,
         string languageCommand,
         string tempFilePath,
-        bool forceUtf8)
+        bool forceUtf8,
+        string? arguments)
     {
         string escapedPath = tempFilePath.Replace("'", "''");
         string exitPrompt = Text.Localize("按 Enter 键退出").Replace("'", "''");
@@ -204,7 +208,13 @@ public static class Exec
             scriptBuilder.Append("[Console]::InputEncoding = [System.Text.Encoding]::UTF8; ");
         }
 
-        scriptBuilder.Append($"{languageCommand} '{escapedPath}'; ");
+        scriptBuilder.Append($"{languageCommand} '{escapedPath}'");
+        if (!string.IsNullOrEmpty(arguments))
+        {
+            scriptBuilder.Append($" {arguments}");
+        }
+        scriptBuilder.Append("; ");
+
         scriptBuilder.Append("Write-Host ''; ");
 
         if (!autoClose)
@@ -223,8 +233,9 @@ public static class Exec
     /// <param name="languageCommand">语言执行命令。</param>
     /// <param name="tempFilePath">临时脚本路径。</param>
     /// <param name="forceUtf8">是否在命令序列前设置 chcp 65001。</param>
+    /// <param name="arguments">传递给脚本的命令行参数，为 null 时不传递。</param>
     /// <returns>Shell 可执行文件名与启动参数。</returns>
-    private static (string ShellExe, string ShellArgs) BuildCmdLaunchInfo(string languageCommand, string tempFilePath, bool forceUtf8)
+    private static (string ShellExe, string ShellArgs) BuildCmdLaunchInfo(string languageCommand, string tempFilePath, bool forceUtf8, string? arguments)
     {
         string quotedPath = $"\"{tempFilePath}\"";
         bool autoClose = Config.AutoCloseTerminalOnCompletion;
@@ -236,7 +247,12 @@ public static class Exec
             commandBuilder.Append("chcp 65001 >nul & ");
         }
 
-        commandBuilder.Append($"{languageCommand} {quotedPath} & echo. & ");
+        commandBuilder.Append($"{languageCommand} {quotedPath}");
+        if (!string.IsNullOrEmpty(arguments))
+        {
+            commandBuilder.Append($" {arguments}");
+        }
+        commandBuilder.Append(" & echo. & ");
 
         if (!autoClose)
         {

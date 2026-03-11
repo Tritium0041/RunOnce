@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: Static/Text.cs
- * @date: 2026-03-10
+ * @date: 2026-03-11
  */
 
 #nullable enable
@@ -130,6 +130,7 @@ public static class Text
 
         // 编辑器页面
         ["在此粘贴代码"] = "Paste code here",
+        ["右键或Ctrl+V"] = "Right-click or Ctrl+V",
         ["纯文本"] = "Plain Text",
         ["行"] = "Ln",
         ["列"] = "Col",
@@ -139,6 +140,10 @@ public static class Text
         ["确定"] = "OK",
         ["执行"] = "Execute",
         ["确定要执行此代码吗？"] = "Are you sure you want to execute this code?",
+
+        // 命令行参数
+        ["命令行参数"] = "Command Line Arguments",
+        ["清除"] = "Clear",
 
         // 终端执行提示
         ["按 Enter 键退出"] = "Press Enter to exit",

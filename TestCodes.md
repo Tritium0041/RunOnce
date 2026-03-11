@@ -1,85 +1,61 @@
-# TestCode
+# TestCodes
 
-测试用例, 用于验证各语言的"一次运行"功能.
+RunOnce 测试用例集, 用于验证各语言的一次性脚本执行功能.
+
+标注 **`[命令行参数]`** 的用例需要通过 `Ctrl+E` 设置参数后再执行, 参数示例在脚本头部注释中给出.
+标注 **`[确保兼容]`** 的用例需要在设置中将脚本放置行为切换为"确保兼容"模式.
 
 ---
 
 ## bat
 
+当前目录文件统计
+
 ```bat
 @echo off
 chcp 65001 >nul
+setlocal enabledelayedexpansion
 echo ===== 当前目录文件统计 =====
+echo.
+
 set fileCount=0
 set dirCount=0
 for /f %%a in ('dir /a-d /b 2^>nul ^| find /c /v ""') do set fileCount=%%a
 for /f %%a in ('dir /ad /b 2^>nul ^| find /c /v ""') do set dirCount=%%a
 echo 当前目录: %cd%
-echo 文件数量: %fileCount%
-echo 文件夹数量: %dirCount%
+echo 文件数量: !fileCount!
+echo 文件夹数量: !dirCount!
 echo.
 echo ===== 文件列表 =====
 for %%f in (*.*) do (
-    echo [文件] %%f  -  %%~zf 字节
+    echo [文件] %%~nxf  -  %%~zf 字节
 )
 for /d %%d in (*) do (
     echo [目录] %%d
 )
-pause
-```
-
-```bat
-@echo off
-chcp 65001 >nul
-echo ===== 系统信息摘要 =====
 echo.
-echo 计算机名: %COMPUTERNAME%
-echo 用户名:   %USERNAME%
-echo 系统目录: %SystemRoot%
-echo.
-echo --- CPU 信息 ---
-wmic cpu get Name /value 2>nul | findstr /r /v "^$"
-echo.
-echo --- 内存信息 ---
-for /f "skip=1 tokens=*" %%a in ('wmic os get TotalVisibleMemorySize /value 2^>nul') do (
-    for /f "tokens=2 delims==" %%b in ("%%a") do (
-        set /a memMB=%%b/1024
-        echo 总物理内存: 约 !memMB! MB
-    )
-)
-setlocal enabledelayedexpansion
-for /f "skip=1 tokens=*" %%a in ('wmic os get TotalVisibleMemorySize /value 2^>nul') do (
-    for /f "tokens=2 delims==" %%b in ("%%a") do (
-        set /a memMB=%%b/1024
-        echo 总物理内存: 约 !memMB! MB
-    )
-)
+echo ===== 统计完成 =====
 endlocal
-echo.
-echo --- 磁盘使用 ---
-for /f "skip=1 tokens=1-3" %%a in ('wmic logicaldisk where "DriveType=3" get DeviceID^,Size^,FreeSpace /format:table 2^>nul') do (
-    if not "%%a"=="" echo 驱动器 %%b  空闲: %%a  总计: %%c
-)
-echo.
-echo --- IP 地址 ---
-for /f "tokens=2 delims=:" %%a in ('ipconfig ^| findstr /i "IPv4"') do echo IPv4:%%a
 pause
 ```
+
+查找大文件 (当前目录及子目录, 大于 1MB)
 
 ```bat
 @echo off
 chcp 65001 >nul
 setlocal enabledelayedexpansion
-echo ===== 查找大文件 (当前目录及子目录) =====
+echo ===== 查找大文件 (大于 1MB) =====
+echo.
+
 set threshold=1048576
 set count=0
-echo.
-echo 大于 1MB 的文件:
+
+echo 扫描目录: %cd%
 echo ----------------------------------------
 for /r %%f in (*) do (
-    if %%~zf gtr %threshold% (
+    if %%~zf gtr !threshold! (
         set /a count+=1
-        set "size=%%~zf"
         set /a sizeMB=%%~zf/1048576
         echo [!sizeMB! MB]  %%f
     )
@@ -94,9 +70,52 @@ endlocal
 pause
 ```
 
+`[命令行参数]` 指定目录文件列表 — 参数示例: `C:\Windows\Fonts`
+
+```bat
+@echo off
+chcp 65001 >nul
+setlocal enabledelayedexpansion
+
+REM 命令行参数: 目标目录路径
+REM Ctrl+E 参数示例: C:\Windows\Fonts
+
+set "targetDir=%~1"
+if "!targetDir!"=="" (
+    echo 用法: 请通过 Ctrl+E 设置命令行参数为目标目录路径
+    echo 示例: C:\Windows\Fonts
+    pause
+    goto :eof
+)
+
+if not exist "!targetDir!\" (
+    echo 错误: 目录不存在 - !targetDir!
+    pause
+    goto :eof
+)
+
+echo ===== 目录文件列表 =====
+echo 目标目录: !targetDir!
+echo.
+
+set fileCount=0
+for %%f in ("!targetDir!\*.*") do (
+    set /a fileCount+=1
+    echo [%%~zf 字节]  %%~nxf
+)
+
+echo.
+echo ----------------------------------------
+echo 文件总数: !fileCount!
+endlocal
+pause
+```
+
 ---
 
 ## powershell
+
+文件统计与按扩展名分组
 
 ```powershell
 Write-Host "===== 当前目录文件统计 =====" -ForegroundColor Cyan
@@ -128,52 +147,7 @@ $files | Sort-Object LastWriteTime -Descending | Select-Object -First 10 | ForEa
 Read-Host "按回车键退出"
 ```
 
-```powershell
-Write-Host "===== 重复文件查找器 =====" -ForegroundColor Cyan
-Write-Host "扫描当前目录及子目录..." -ForegroundColor Yellow
-Write-Host ""
-
-$allFiles = Get-ChildItem -Path . -Recurse -File -ErrorAction SilentlyContinue
-$hashGroups = @{}
-
-$i = 0
-foreach ($file in $allFiles) {
-    $i++
-    Write-Progress -Activity "计算文件哈希" -Status $file.Name -PercentComplete (($i / $allFiles.Count) * 100)
-    try {
-        $hash = (Get-FileHash -Path $file.FullName -Algorithm MD5).Hash
-        if (-not $hashGroups.ContainsKey($hash)) {
-            $hashGroups[$hash] = @()
-        }
-        $hashGroups[$hash] += $file
-    } catch {
-        # 跳过无法读取的文件
-    }
-}
-Write-Progress -Activity "计算文件哈希" -Completed
-
-$duplicates = $hashGroups.GetEnumerator() | Where-Object { $_.Value.Count -gt 1 }
-$dupCount = 0
-
-foreach ($dup in $duplicates) {
-    $dupCount++
-    $size = $dup.Value[0].Length
-    Write-Host "--- 重复组 #$dupCount (大小: $size 字节) ---" -ForegroundColor Red
-    foreach ($f in $dup.Value) {
-        Write-Host "  $($f.FullName)"
-    }
-    Write-Host ""
-}
-
-if ($dupCount -eq 0) {
-    Write-Host "未发现重复文件." -ForegroundColor Green
-} else {
-    $wastedBytes = ($duplicates | ForEach-Object { $_.Value[0].Length * ($_.Value.Count - 1) } | Measure-Object -Sum).Sum
-    Write-Host "共发现 $dupCount 组重复文件, 浪费空间约 $([math]::Round($wastedBytes / 1KB, 2)) KB" -ForegroundColor Yellow
-}
-
-Read-Host "按回车键退出"
-```
+本机常用端口扫描
 
 ```powershell
 Write-Host "===== 端口扫描器 (本机常用端口) =====" -ForegroundColor Cyan
@@ -186,7 +160,6 @@ $ports = @(
     @{Port=5432; Name="PostgreSQL"},
     @{Port=6379; Name="Redis"},
     @{Port=8080; Name="HTTP-Alt"},
-    @{Port=8443; Name="HTTPS-Alt"},
     @{Port=3389; Name="RDP"},
     @{Port=22;   Name="SSH"},
     @{Port=21;   Name="FTP"},
@@ -217,6 +190,47 @@ foreach ($p in $ports) {
 
 Write-Host ""
 Write-Host "扫描完成: $($openPorts.Count)/$($ports.Count) 个端口开放" -ForegroundColor Cyan
+Read-Host "按回车键退出"
+```
+
+`[命令行参数]` 进程信息查看 — 参数示例: `explorer`
+
+```powershell
+# 命令行参数: 进程名称关键词
+# Ctrl+E 参数示例: explorer
+
+param()
+
+$keyword = if ($args.Count -gt 0) { $args[0] } else { $null }
+
+if (-not $keyword) {
+    Write-Host "用法: 请通过 Ctrl+E 设置命令行参数为进程名称关键词" -ForegroundColor Yellow
+    Write-Host "示例: explorer"
+    Read-Host "按回车键退出"
+    exit
+}
+
+Write-Host "===== 进程信息查看 =====" -ForegroundColor Cyan
+Write-Host "搜索关键词: $keyword" -ForegroundColor Yellow
+Write-Host ""
+
+$processes = Get-Process | Where-Object { $_.Name -like "*$keyword*" }
+
+if ($processes.Count -eq 0) {
+    Write-Host "未找到匹配的进程." -ForegroundColor Red
+} else {
+    Write-Host ("{0,-8} {1,-30} {2,12} {3,10}" -f "PID", "进程名", "内存(MB)", "CPU(s)")
+    Write-Host ("-" * 65)
+    $totalMem = 0
+    foreach ($p in $processes | Sort-Object WorkingSet64 -Descending) {
+        $memMB = $p.WorkingSet64 / 1MB
+        $totalMem += $memMB
+        $cpuSec = if ($p.CPU) { "{0:N1}" -f $p.CPU } else { "-" }
+        Write-Host ("{0,-8} {1,-30} {2,10:N1} {3,10}" -f $p.Id, $p.Name, $memMB, $cpuSec)
+    }
+    Write-Host ("-" * 65)
+    Write-Host ("匹配进程: {0} 个, 总内存: {1:N1} MB" -f $processes.Count, $totalMem) -ForegroundColor Green
+}
 
 Read-Host "按回车键退出"
 ```
@@ -225,10 +239,13 @@ Read-Host "按回车键退出"
 
 ## python
 
+目录扫描统计
+
 ```python
 import os
 from pathlib import Path
 from collections import defaultdict
+
 
 def scan_directory(path="."):
     """统计当前目录的文件信息"""
@@ -259,37 +276,39 @@ def scan_directory(path="."):
     print(f"{'扩展名':<15} {'数量':>6} {'大小':>12}")
     print("-" * 35)
     for ext, info in sorted(ext_stats.items(), key=lambda x: x[1]["size"], reverse=True):
-        print(f"{ext:<15} {info['count']:>6} {info['size']/1024:>10.1f} KB")
+        print(f"{ext:<15} {info['count']:>6} {info['size'] / 1024:>10.1f} KB")
 
-    # 找出最大的5个文件
     print(f"\n最大的 5 个文件:")
     all_files = [(f, f.stat().st_size) for f in p.rglob("*") if f.is_file()]
     all_files.sort(key=lambda x: x[1], reverse=True)
     for f, size in all_files[:5]:
-        print(f"  {size/1024:>10.1f} KB  {f.relative_to(p)}")
+        print(f"  {size / 1024:>10.1f} KB  {f.relative_to(p)}")
+
 
 scan_directory()
 input("\n按回车键退出...")
 ```
 
+重复文件查找器
+
 ```python
-import os
 import hashlib
 from pathlib import Path
 from datetime import datetime
 
+
 def find_duplicates(directory="."):
     """查找重复文件"""
     print("===== 重复文件查找器 =====\n")
-    print(f"扫描目录: {Path(directory).resolve()}\n")
+    root = Path(directory).resolve()
+    print(f"扫描目录: {root}\n")
 
     size_map = {}
-    for filepath in Path(directory).rglob("*"):
+    for filepath in root.rglob("*"):
         if filepath.is_file():
             size = filepath.stat().st_size
             size_map.setdefault(size, []).append(filepath)
 
-    # 只对大小相同的文件计算哈希
     hash_map = {}
     checked = 0
     for size, files in size_map.items():
@@ -315,7 +334,6 @@ def find_duplicates(directory="."):
                 mtime = datetime.fromtimestamp(f.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
                 print(f"  [{mtime}] {f}")
             print()
-
         print(f"共发现 {len(dup_groups)} 组重复文件")
         print(f"浪费空间: {wasted / 1024:.1f} KB")
     else:
@@ -323,110 +341,82 @@ def find_duplicates(directory="."):
 
     print(f"(共检查哈希 {checked} 个文件)")
 
+
 find_duplicates()
 input("\n按回车键退出...")
 ```
 
+`[命令行参数]` 文本文件统计 — 参数示例: `.py .lua .md`
+
 ```python
+import sys
 import os
-import json
 from pathlib import Path
-from datetime import datetime
 
-def generate_tree(directory=".", max_depth=3):
-    """生成目录树并导出为 JSON"""
+# 命令行参数: 一个或多个文件扩展名
+# Ctrl+E 参数示例: .py .lua .md
+
+
+def count_lines(directory, extensions):
+    """统计指定扩展名文件的行数信息"""
     root = Path(directory).resolve()
-    print(f"===== 目录树生成器 =====")
-    print(f"根目录: {root}")
-    print(f"最大深度: {max_depth}\n")
+    print(f"===== 文本文件统计 =====")
+    print(f"目录: {root}")
+    print(f"扩展名: {', '.join(extensions)}\n")
 
-    def build_tree(path, depth=0):
-        if depth >= max_depth:
-            return None
-        node = {
-            "name": path.name or str(path),
-            "type": "directory",
-            "children": []
-        }
+    stats = {}
+    for ext in extensions:
+        stats[ext] = {"files": 0, "lines": 0, "blank": 0, "chars": 0}
+
+    for filepath in root.rglob("*"):
+        if not filepath.is_file():
+            continue
+        suffix = filepath.suffix.lower()
+        if suffix not in stats:
+            continue
         try:
-            items = sorted(path.iterdir(), key=lambda x: (x.is_file(), x.name.lower()))
-        except PermissionError:
-            node["error"] = "权限不足"
-            return node
+            content = filepath.read_text(encoding="utf-8", errors="ignore")
+            lines = content.splitlines()
+            stats[suffix]["files"] += 1
+            stats[suffix]["lines"] += len(lines)
+            stats[suffix]["blank"] += sum(1 for line in lines if line.strip() == "")
+            stats[suffix]["chars"] += len(content)
+        except (PermissionError, OSError):
+            pass
 
-        for item in items:
-            if item.name.startswith("."):
-                continue
-            if item.is_dir():
-                child = build_tree(item, depth + 1)
-                if child:
-                    node["children"].append(child)
-            else:
-                node["children"].append({
-                    "name": item.name,
-                    "type": "file",
-                    "size": item.stat().st_size
-                })
-        return node
+    print(f"{'扩展名':<10} {'文件数':>6} {'总行数':>8} {'空行数':>8} {'字符数':>10}")
+    print("-" * 48)
 
-    def print_tree(node, prefix="", is_last=True):
-        connector = "└── " if is_last else "├── "
-        if prefix:
-            line = prefix + connector + node["name"]
-        else:
-            line = node["name"]
+    total_files = total_lines = total_blank = total_chars = 0
+    for ext in sorted(stats.keys()):
+        s = stats[ext]
+        print(f"{ext:<10} {s['files']:>6} {s['lines']:>8} {s['blank']:>8} {s['chars']:>10}")
+        total_files += s["files"]
+        total_lines += s["lines"]
+        total_blank += s["blank"]
+        total_chars += s["chars"]
 
-        if node["type"] == "file":
-            size = node.get("size", 0)
-            if size > 1024 * 1024:
-                line += f"  ({size/1024/1024:.1f} MB)"
-            elif size > 1024:
-                line += f"  ({size/1024:.1f} KB)"
-            else:
-                line += f"  ({size} B)"
-        print(line)
+    print("-" * 48)
+    print(f"{'合计':<10} {total_files:>6} {total_lines:>8} {total_blank:>8} {total_chars:>10}")
 
-        if "children" in node:
-            children = node["children"]
-            for i, child in enumerate(children):
-                ext = "    " if is_last else "│   "
-                new_prefix = prefix + ext if prefix else ext
-                print_tree(child, new_prefix if prefix else "    " if is_last else "│   ", i == len(children) - 1)
 
-    tree = build_tree(root)
+if len(sys.argv) < 2:
+    print("用法: 请通过 Ctrl+E 设置命令行参数为文件扩展名")
+    print("示例: .py .lua .md")
+    input("\n按回车键退出...")
+    sys.exit(0)
 
-    # 打印树
-    print_tree(tree)
-
-    # 导出 JSON
-    output_file = "directory_tree.json"
-    with open(output_file, "w", encoding="utf-8") as f:
-        json.dump(tree, f, ensure_ascii=False, indent=2)
-    print(f"\n已导出到 {output_file}")
-
-    # 统计
-    def count_nodes(node):
-        files, dirs = 0, 0
-        if node["type"] == "file":
-            files = 1
-        else:
-            dirs = 1
-            for child in node.get("children", []):
-                f, d = count_nodes(child)
-                files += f
-                dirs += d
-        return files, dirs
-
-    f_count, d_count = count_nodes(tree)
-    print(f"共 {d_count} 个目录, {f_count} 个文件")
-
-generate_tree()
+extensions = [ext if ext.startswith(".") else f".{ext}" for ext in sys.argv[1:]]
+count_lines(".", extensions)
 input("\n按回车键退出...")
 ```
 
+`[确保兼容]` 批量生成应用资源图 (需要 Pillow 库)
+
 ```python
 """
-此脚本需要在"确保兼容"模式才能运行
+此脚本需要在"确保兼容"模式运行, 因为它需要访问脚本所在目录的 logo.png 文件.
+依赖: pip install Pillow
 """
 
 from PIL import Image
@@ -434,10 +424,7 @@ import os
 
 
 def generate_asset(source_img, target_width, target_height, output_path, padding_ratio=0.0):
-    """
-    将源图等比缩放到目标尺寸内（不压缩变形），居中放置在透明画布上。
-    padding_ratio: 内边距比例，0.0 表示铺满，0.1 表示四周留 10% 空白。
-    """
+    """将源图等比缩放到目标尺寸内, 居中放置在透明画布上."""
     canvas = Image.new("RGBA", (target_width, target_height), (0, 0, 0, 0))
 
     available_w = max(1, int(target_width * (1 - 2 * padding_ratio)))
@@ -456,7 +443,7 @@ def generate_asset(source_img, target_width, target_height, output_path, padding
 
     canvas.paste(resized, (x, y), resized)
     canvas.save(output_path, "PNG")
-    print(f"  ✔ {os.path.basename(output_path):55s}  {target_width}×{target_height}")
+    print(f"  OK {os.path.basename(output_path):55s}  {target_width}x{target_height}")
 
 
 def main():
@@ -464,58 +451,37 @@ def main():
     source_path = os.path.join(assets_dir, "logo.png")
 
     if not os.path.exists(source_path):
-        print(f"❌ 找不到源文件: {source_path}")
+        print(f"找不到源文件: {source_path}")
         return
 
     source = Image.open(source_path).convert("RGBA")
-    print(f"源图: {source_path}  ({source.size[0]}×{source.size[1]})\n")
+    print(f"源图: {source_path}  ({source.size[0]}x{source.size[1]})\n")
 
-    # (文件名, 宽, 高)
     assets = [
-        # LockScreenLogo  (基准 24×24)
-        ("LockScreenLogo.scale-100.png",  24,   24),
-        ("LockScreenLogo.scale-200.png",  48,   48),
-
-        # SplashScreen  (基准 620×300)
-        ("SplashScreen.scale-100.png",   620,  300),
-        ("SplashScreen.scale-150.png",   930,  450),
-        ("SplashScreen.scale-200.png",  1240,  600),
-        ("SplashScreen.scale-400.png",  2480, 1200),
-
-        # Square150x150Logo  (基准 150×150)
+        ("LockScreenLogo.scale-100.png", 24, 24),
+        ("LockScreenLogo.scale-200.png", 48, 48),
+        ("SplashScreen.scale-100.png", 620, 300),
+        ("SplashScreen.scale-200.png", 1240, 600),
         ("Square150x150Logo.scale-100.png", 150, 150),
-        ("Square150x150Logo.scale-150.png", 225, 225),
         ("Square150x150Logo.scale-200.png", 300, 300),
         ("Square150x150Logo.scale-400.png", 600, 600),
-
-        # Square44x44Logo  (基准 44×44)
-        ("Square44x44Logo.scale-100.png",  44,  44),
-        ("Square44x44Logo.scale-150.png",  66,  66),
-        ("Square44x44Logo.scale-200.png",  88,  88),
-        ("Square44x44Logo.scale-400.png", 176, 176),
-
-        # Square44x44Logo targetsize altform-unplated
-        ("Square44x44Logo.targetsize-16_altform-unplated.png",   16,  16),
-        ("Square44x44Logo.targetsize-24_altform-unplated.png",   24,  24),
-        ("Square44x44Logo.targetsize-32_altform-unplated.png",   32,  32),
-        ("Square44x44Logo.targetsize-48_altform-unplated.png",   48,  48),
+        ("Square44x44Logo.scale-100.png", 44, 44),
+        ("Square44x44Logo.scale-200.png", 88, 88),
+        ("Square44x44Logo.targetsize-16_altform-unplated.png", 16, 16),
+        ("Square44x44Logo.targetsize-24_altform-unplated.png", 24, 24),
+        ("Square44x44Logo.targetsize-32_altform-unplated.png", 32, 32),
+        ("Square44x44Logo.targetsize-48_altform-unplated.png", 48, 48),
         ("Square44x44Logo.targetsize-256_altform-unplated.png", 256, 256),
-
-        # StoreLogo  (基准 50×50)
         ("StoreLogo.png", 50, 50),
-
-        # Wide310x150Logo  (基准 310×150)
-        ("Wide310x150Logo.scale-100.png",  310,  150),
-        ("Wide310x150Logo.scale-150.png",  465,  225),
-        ("Wide310x150Logo.scale-200.png",  620,  300),
-        ("Wide310x150Logo.scale-400.png", 1240,  600),
+        ("Wide310x150Logo.scale-100.png", 310, 150),
+        ("Wide310x150Logo.scale-200.png", 620, 300),
     ]
 
     for filename, w, h in assets:
         output_path = os.path.join(assets_dir, filename)
         generate_asset(source, w, h, output_path)
 
-    print(f"\n✅ 完成，共生成 {len(assets)} 张资源图。")
+    print(f"\n完成, 共生成 {len(assets)} 张资源图.")
 
 
 if __name__ == "__main__":
@@ -525,6 +491,8 @@ if __name__ == "__main__":
 ---
 
 ## lua
+
+当前目录文件统计
 
 ```lua
 local lfs_ok, lfs = pcall(require, "lfs")
@@ -538,7 +506,6 @@ local file_count = 0
 local dir_count = 0
 local total_size = 0
 local ext_stats = {}
-local files_list = {}
 
 if lfs_ok then
     for entry in lfs.dir(dir) do
@@ -549,14 +516,13 @@ if lfs_ok then
                 if attr.mode == "file" then
                     file_count = file_count + 1
                     total_size = total_size + attr.size
-                    local ext = entry:match("%.([^%.]+)$") or "(无扩展名)"
+                    local ext = entry:match("%.([^%.]+)$") or "(none)"
                     ext = ext:lower()
                     if not ext_stats[ext] then
                         ext_stats[ext] = {count = 0, size = 0}
                     end
                     ext_stats[ext].count = ext_stats[ext].count + 1
                     ext_stats[ext].size = ext_stats[ext].size + attr.size
-                    table.insert(files_list, {name = entry, size = attr.size, time = attr.modification})
                 elseif attr.mode == "directory" then
                     dir_count = dir_count + 1
                 end
@@ -564,20 +530,23 @@ if lfs_ok then
         end
     end
 else
-    -- 无 lfs 时使用 io.popen
-    local handle = io.popen('dir /b /a-d 2>nul')
+    local handle = io.popen("dir /b /a-d 2>nul")
     if handle then
         for line in handle:lines() do
             file_count = file_count + 1
-            local ext = line:match("%.([^%.]+)$") or "(无)"
-            if not ext_stats[ext] then ext_stats[ext] = {count = 0, size = 0} end
+            local ext = line:match("%.([^%.]+)$") or "(none)"
+            if not ext_stats[ext] then
+                ext_stats[ext] = {count = 0, size = 0}
+            end
             ext_stats[ext].count = ext_stats[ext].count + 1
         end
         handle:close()
     end
-    local dhandle = io.popen('dir /b /ad 2>nul')
+    local dhandle = io.popen("dir /b /ad 2>nul")
     if dhandle then
-        for line in dhandle:lines() do dir_count = dir_count + 1 end
+        for line in dhandle:lines() do
+            dir_count = dir_count + 1
+        end
         dhandle:close()
     end
 end
@@ -589,11 +558,13 @@ print(string.format("总大小:   %.2f KB\n", total_size / 1024))
 print("按扩展名统计:")
 print(string.format("%-15s %6s %12s", "扩展名", "数量", "大小"))
 print(string.rep("-", 35))
+
 local sorted_exts = {}
 for ext, info in pairs(ext_stats) do
     table.insert(sorted_exts, {ext = ext, count = info.count, size = info.size})
 end
 table.sort(sorted_exts, function(a, b) return a.size > b.size end)
+
 for _, item in ipairs(sorted_exts) do
     print(string.format("%-15s %6d %10.1f KB", item.ext, item.count, item.size / 1024))
 end
@@ -601,76 +572,7 @@ end
 io.read()
 ```
 
-```lua
-print("===== 文本文件搜索工具 =====\n")
-
-io.write("输入搜索关键词: ")
-local keyword = io.read("*l")
-if not keyword or keyword == "" then
-    keyword = "TODO"
-    print("使用默认关键词: " .. keyword)
-end
-
-local extensions = {".txt", ".lua", ".py", ".md", ".json", ".xml", ".csv", ".log", ".bat", ".ps1"}
-local ext_set = {}
-for _, e in ipairs(extensions) do ext_set[e] = true end
-
-local results = {}
-local files_scanned = 0
-local lines_scanned = 0
-
-local function search_file(filepath)
-    local f = io.open(filepath, "r")
-    if not f then return end
-    files_scanned = files_scanned + 1
-    local line_num = 0
-    for line in f:lines() do
-        line_num = line_num + 1
-        lines_scanned = lines_scanned + 1
-        if line:find(keyword, 1, true) then
-            table.insert(results, {
-                file = filepath,
-                line = line_num,
-                content = line:sub(1, 120)
-            })
-        end
-    end
-    f:close()
-end
-
--- 使用系统命令获取文件列表
-local cmd
-if package.config:sub(1,1) == "\\" then
-    cmd = 'dir /b /s /a-d 2>nul'
-else
-    cmd = 'find . -type f 2>/dev/null'
-end
-
-local handle = io.popen(cmd)
-if handle then
-    for filepath in handle:lines() do
-        local ext = filepath:match("(%.[^%.\\]+)$")
-        if ext and ext_set[ext:lower()] then
-            search_file(filepath)
-        end
-    end
-    handle:close()
-end
-
-print(string.format("\n搜索完成: 扫描 %d 个文件, %d 行", files_scanned, lines_scanned))
-print(string.format("找到 %d 处匹配\n", #results))
-
-for i, r in ipairs(results) do
-    print(string.format("[%d] %s:%d", i, r.file, r.line))
-    print("    " .. r.content:gsub("^%s+", ""))
-    if i >= 50 then
-        print(string.format("\n... 还有 %d 处匹配未显示", #results - 50))
-        break
-    end
-end
-
-io.read()
-```
+简易 Markdown 转 HTML
 
 ```lua
 print("===== 简易 Markdown 转 HTML =====\n")
@@ -720,7 +622,6 @@ local function md_to_html(text)
             if line:match("^%s*$") then
                 table.insert(html, "")
             else
-                -- 加粗和斜体
                 local processed = escape_html(line)
                 processed = processed:gsub("%*%*(.-)%*%*", "<strong>%1</strong>")
                 processed = processed:gsub("%*(.-)%*", "<em>%1</em>")
@@ -732,8 +633,7 @@ local function md_to_html(text)
     return table.concat(html, "\n")
 end
 
--- 读取当前目录的所有 .md 文件并转换
-local cmd = package.config:sub(1,1) == "\\" and 'dir /b *.md 2>nul' or 'ls *.md 2>/dev/null'
+local cmd = package.config:sub(1, 1) == "\\" and "dir /b *.md 2>nul" or "ls *.md 2>/dev/null"
 local handle = io.popen(cmd)
 local converted = 0
 
@@ -768,11 +668,95 @@ if converted == 0 then
     print("当前目录未找到 .md 文件, 生成示例...")
     local demo = "# 示例标题\n\n这是一段**粗体**和*斜体*文字.\n\n## 列表\n\n- 第一项\n- 第二项\n- 第三项\n"
     local f = io.open("demo.md", "w")
-    f:write(demo)
-    f:close()
-    print("已生成 demo.md, 请重新运行.")
+    if f then
+        f:write(demo)
+        f:close()
+        print("已生成 demo.md, 请重新运行.")
+    end
 else
     print(string.format("\n共转换 %d 个文件", converted))
+end
+
+io.read()
+```
+
+`[命令行参数]` 文本文件搜索 — 参数示例: `TODO`
+
+```lua
+-- 命令行参数: 搜索关键词
+-- Ctrl+E 参数示例: TODO
+
+local keyword = arg[1]
+
+if not keyword or keyword == "" then
+    print("用法: 请通过 Ctrl+E 设置命令行参数为搜索关键词")
+    print("示例: TODO")
+    io.read()
+    os.exit(0)
+end
+
+print("===== 文本文件搜索 =====\n")
+print("关键词: " .. keyword)
+print("")
+
+local extensions = {
+    [".txt"] = true, [".lua"] = true, [".py"] = true,
+    [".md"] = true, [".json"] = true, [".xml"] = true,
+    [".csv"] = true, [".log"] = true, [".bat"] = true,
+    [".ps1"] = true, [".go"] = true, [".nim"] = true,
+}
+
+local results = {}
+local files_scanned = 0
+local lines_scanned = 0
+
+local function search_file(filepath)
+    local f = io.open(filepath, "r")
+    if not f then return end
+    files_scanned = files_scanned + 1
+    local line_num = 0
+    for line in f:lines() do
+        line_num = line_num + 1
+        lines_scanned = lines_scanned + 1
+        if line:find(keyword, 1, true) then
+            table.insert(results, {
+                file = filepath,
+                line = line_num,
+                content = line:sub(1, 120),
+            })
+        end
+    end
+    f:close()
+end
+
+local cmd
+if package.config:sub(1, 1) == "\\" then
+    cmd = "dir /b /s /a-d 2>nul"
+else
+    cmd = "find . -type f 2>/dev/null"
+end
+
+local handle = io.popen(cmd)
+if handle then
+    for filepath in handle:lines() do
+        local ext = filepath:match("(%.[^%.\\]+)$")
+        if ext and extensions[ext:lower()] then
+            search_file(filepath)
+        end
+    end
+    handle:close()
+end
+
+print(string.format("搜索完成: 扫描 %d 个文件, %d 行", files_scanned, lines_scanned))
+print(string.format("找到 %d 处匹配\n", #results))
+
+for i, r in ipairs(results) do
+    print(string.format("[%d] %s:%d", i, r.file, r.line))
+    print("    " .. r.content:gsub("^%s+", ""))
+    if i >= 50 then
+        print(string.format("\n... 还有 %d 处匹配未显示", #results - 50))
+        break
+    end
 end
 
 io.read()
@@ -781,6 +765,8 @@ io.read()
 ---
 
 ## nim
+
+当前目录文件统计
 
 ```nim
 import os, strformat, strutils, tables, algorithm, times
@@ -807,7 +793,7 @@ proc scanDirectory(path: string = ".") =
       let info = getFileInfo(entry)
       let size = info.size
       totalSize += size
-      let ext = if entry.splitFile().ext != "": entry.splitFile().ext.toLowerAscii() else: "(无扩展名)"
+      let ext = if entry.splitFile().ext != "": entry.splitFile().ext.toLowerAscii() else: "(none)"
       if ext notin extStats:
         extStats[ext] = (count: 0, size: 0'i64)
       extStats[ext] = (count: extStats[ext].count + 1, size: extStats[ext].size + size)
@@ -822,9 +808,9 @@ proc scanDirectory(path: string = ".") =
   echo ""
 
   echo "按扩展名统计:"
-  let hExt   = "扩展名"
+  let hExt = "扩展名"
   let hCount = "数量"
-  let hSize  = "大小"
+  let hSize = "大小"
   echo fmt"{hExt:<15} {hCount:>6} {hSize:>12}"
   echo "-".repeat(35)
 
@@ -846,68 +832,7 @@ scanDirectory()
 discard readLine(stdin)
 ```
 
-```nim
-import os, strutils, strformat, times, algorithm
-
-type FileEntry = tuple[path: string, size: int64, modified: Time]
-
-proc findLargeFiles(dir: string = ".", thresholdKB: int = 100) =
-  echo "===== 大文件查找器 ====="
-  echo fmt"目录: {absolutePath(dir)}"
-  echo fmt"阈值: {thresholdKB} KB"
-  echo ""
-
-  var
-    allFiles: seq[FileEntry] = @[]
-    scanned = 0
-    errors = 0
-    totalSize: int64 = 0
-
-  proc walk(path: string) =
-    try:
-      for kind, entry in walkDir(path):
-        case kind
-        of pcFile:
-          inc scanned
-          try:
-            let info = getFileInfo(entry)
-            totalSize += info.size
-            if info.size >= thresholdKB * 1024:
-              allFiles.add((path: entry, size: info.size, modified: info.lastWriteTime))
-          except:
-            inc errors
-        of pcDir:
-          walk(entry)
-        else: discard
-    except:
-      inc errors
-
-  walk(dir)
-
-  allFiles.sort(proc(a, b: FileEntry): int = cmp(b.size, a.size))
-
-  echo fmt"扫描文件数: {scanned}"
-  echo fmt"总大小: {totalSize.float / 1024.0 / 1024.0:.2f} MB"
-  echo fmt"错误: {errors}"
-  echo fmt"大于 {thresholdKB}KB 的文件: {allFiles.len} 个"
-  echo ""
-
-  let hSize = "大小"
-  let hTime = "修改时间"
-  let hPath = "路径"
-  echo fmt"{hSize:>12} {hTime:<20} {hPath}"
-  echo "-".repeat(70)
-  for f in allFiles:
-    let sizeStr = if f.size > 1024 * 1024:
-        fmt"{f.size.float / 1024.0 / 1024.0:.1f} MB"
-      else:
-        fmt"{f.size.float / 1024.0:.1f} KB"
-    let timeStr = f.modified.format("yyyy-MM-dd HH:mm")
-    echo fmt"{sizeStr:>12} {timeStr:<20} {f.path}"
-
-findLargeFiles()
-discard readLine(stdin)
-```
+代码行数统计
 
 ```nim
 import os, strutils, strformat, tables, algorithm
@@ -923,7 +848,7 @@ proc countLines(dir: string = ".") =
     ".js": "JavaScript", ".ts": "TypeScript", ".html": "HTML",
     ".css": "CSS", ".json": "JSON", ".md": "Markdown",
     ".c": "C", ".cpp": "C++", ".h": "C Header",
-    ".rs": "Rust", ".java": "Java", ".sh": "Shell"
+    ".rs": "Rust", ".java": "Java", ".sh": "Shell",
   }.toTable
 
   type LangStat = object
@@ -948,7 +873,6 @@ proc countLines(dir: string = ".") =
       let content = readFile(path)
       stats[lang].files += 1
       inc totalFiles
-
       for line in content.splitLines():
         stats[lang].lines += 1
         let trimmed = line.strip()
@@ -958,7 +882,7 @@ proc countLines(dir: string = ".") =
           stats[lang].comment += 1
         else:
           stats[lang].code += 1
-    except:
+    except CatchableError:
       discard
 
   proc walkAll(path: string) =
@@ -972,12 +896,12 @@ proc countLines(dir: string = ".") =
 
   walkAll(dir)
 
-  let hLang    = "语言"
-  let hFiles   = "文件"
-  let hLines   = "总行数"
-  let hCode    = "代码"
+  let hLang = "语言"
+  let hFiles = "文件"
+  let hLines = "总行数"
+  let hCode = "代码"
   let hComment = "注释"
-  let hBlank   = "空行"
+  let hBlank = "空行"
   echo fmt"{hLang:<15} {hFiles:>6} {hLines:>8} {hCode:>8} {hComment:>8} {hBlank:>8}"
   echo "-".repeat(60)
 
@@ -990,10 +914,10 @@ proc countLines(dir: string = ".") =
   var totalLines, totalCode, totalComment, totalBlank = 0
   for r in rows:
     echo fmt"{r.lang:<15} {r.stat.files:>6} {r.stat.lines:>8} {r.stat.code:>8} {r.stat.comment:>8} {r.stat.blank:>8}"
-    totalLines   += r.stat.lines
-    totalCode    += r.stat.code
+    totalLines += r.stat.lines
+    totalCode += r.stat.code
     totalComment += r.stat.comment
-    totalBlank   += r.stat.blank
+    totalBlank += r.stat.blank
 
   echo "-".repeat(60)
   let hTotal = "合计"
@@ -1003,7 +927,86 @@ countLines()
 discard readLine(stdin)
 ```
 
+`[命令行参数]` 大文件查找 — 参数示例: `-- 100`
+
+```nim
+import os, strutils, strformat, times, algorithm
+
+# 命令行参数: 大小阈值 (KB)
+# Ctrl+E 参数示例: -- 100
+
+proc findLargeFiles(dir: string = ".", thresholdKB: int = 100) =
+  echo "===== 大文件查找器 ====="
+  echo fmt"目录: {absolutePath(dir)}"
+  echo fmt"阈值: {thresholdKB} KB"
+  echo ""
+
+  type FileEntry = tuple[path: string, size: int64, modified: Time]
+
+  var
+    allFiles: seq[FileEntry] = @[]
+    scanned = 0
+    errors = 0
+    totalSize: int64 = 0
+
+  proc walk(path: string) =
+    try:
+      for kind, entry in walkDir(path):
+        case kind
+        of pcFile:
+          inc scanned
+          try:
+            let info = getFileInfo(entry)
+            totalSize += info.size
+            if info.size >= thresholdKB * 1024:
+              allFiles.add((path: entry, size: info.size, modified: info.lastWriteTime))
+          except CatchableError:
+            inc errors
+        of pcDir:
+          walk(entry)
+        else: discard
+    except CatchableError:
+      inc errors
+
+  walk(dir)
+  allFiles.sort(proc(a, b: FileEntry): int = cmp(b.size, a.size))
+
+  echo fmt"扫描文件数: {scanned}"
+  echo fmt"总大小: {totalSize.float / 1024.0 / 1024.0:.2f} MB"
+  echo fmt"错误: {errors}"
+  echo fmt"大于 {thresholdKB} KB 的文件: {allFiles.len} 个"
+  echo ""
+
+  let hSize = "大小"
+  let hTime = "修改时间"
+  let hPath = "路径"
+  echo fmt"{hSize:>12} {hTime:<20} {hPath}"
+  echo "-".repeat(70)
+
+  for f in allFiles:
+    let sizeStr = if f.size > 1024 * 1024:
+        fmt"{f.size.float / 1024.0 / 1024.0:.1f} MB"
+      else:
+        fmt"{f.size.float / 1024.0:.1f} KB"
+    let timeStr = f.modified.format("yyyy-MM-dd HH:mm")
+    echo fmt"{sizeStr:>12} {timeStr:<20} {f.path}"
+
+var threshold = 100
+if paramCount() >= 1:
+  try:
+    threshold = parseInt(paramStr(1))
+  except ValueError:
+    echo "警告: 无效的阈值参数, 使用默认值 100 KB"
+
+findLargeFiles(".", threshold)
+discard readLine(stdin)
+```
+
 ---
+
+## go
+
+当前目录文件统计
 
 ```go
 package main
@@ -1048,7 +1051,7 @@ func main() {
             totalSize += info.Size()
             ext := strings.ToLower(filepath.Ext(info.Name()))
             if ext == "" {
-                ext = "(无扩展名)"
+                ext = "(none)"
             }
             if _, ok := extStats[ext]; !ok {
                 extStats[ext] = &ExtInfo{}
@@ -1095,6 +1098,8 @@ func main() {
 }
 ```
 
+重复文件查找器
+
 ```go
 package main
 
@@ -1114,7 +1119,6 @@ func main() {
     dir, _ := os.Getwd()
     fmt.Printf("扫描目录: %s\n\n", dir)
 
-    // 按大小分组
     sizeMap := make(map[int64][]string)
     filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
         if err == nil && !info.IsDir() {
@@ -1123,7 +1127,6 @@ func main() {
         return nil
     })
 
-    // 对大小相同的文件计算MD5
     hashMap := make(map[string][]string)
     checked := 0
     for _, paths := range sizeMap {
@@ -1139,7 +1142,6 @@ func main() {
         }
     }
 
-    // 输出重复文件
     groupNum := 0
     var wastedBytes int64
     for _, files := range hashMap {
@@ -1184,8 +1186,13 @@ func hashFile(path string) (string, error) {
 }
 ```
 
+`[命令行参数]` 指定目录代码行数统计 — 参数示例: `.`
+
 ```go
 package main
+
+// 命令行参数: 目标目录路径
+// Ctrl+E 参数示例: .
 
 import (
     "bufio"
@@ -1201,8 +1208,22 @@ func main() {
     fmt.Println("===== 代码行数统计工具 =====")
     fmt.Println()
 
-    dir, _ := os.Getwd()
-    fmt.Printf("目录: %s\n", dir)
+    dir := "."
+    if len(os.Args) > 1 {
+        dir = os.Args[1]
+    }
+
+    info, err := os.Stat(dir)
+    if err != nil || !info.IsDir() {
+        fmt.Printf("错误: 无效的目录路径 - %s\n", dir)
+        fmt.Println("用法: 请通过 Ctrl+E 设置命令行参数为目标目录路径")
+        fmt.Println("\n按回车键退出...")
+        fmt.Scanln()
+        return
+    }
+
+    absDir, _ := filepath.Abs(dir)
+    fmt.Printf("目录: %s\n", absDir)
 
     langMap := map[string]string{
         ".go": "Go", ".py": "Python", ".js": "JavaScript",
@@ -1224,14 +1245,14 @@ func main() {
 
     start := time.Now()
 
-    filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-        if err != nil || info.IsDir() {
-            if info != nil && info.IsDir() && strings.HasPrefix(info.Name(), ".") && path != dir {
+    filepath.Walk(dir, func(path string, fi os.FileInfo, err error) error {
+        if err != nil || fi.IsDir() {
+            if fi != nil && fi.IsDir() && strings.HasPrefix(fi.Name(), ".") && path != dir {
                 return filepath.SkipDir
             }
             return nil
         }
-        ext := strings.ToLower(filepath.Ext(info.Name()))
+        ext := strings.ToLower(filepath.Ext(fi.Name()))
         lang, ok := langMap[ext]
         if !ok {
             return nil

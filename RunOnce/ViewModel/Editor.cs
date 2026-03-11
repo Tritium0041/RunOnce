@@ -1,10 +1,10 @@
 ﻿/*
  * 代码编辑器页面 ViewModel
- * 管理编辑器页面的光标位置、语言检测结果与执行逻辑
+ * 管理编辑器页面的光标位置、语言检测结果、命令行参数与执行逻辑
  *
  * @author: WaterRun
  * @file: ViewModel/Editor.cs
- * @date: 2026-03-08
+ * @date: 2026-03-11
  */
 
 #nullable enable
@@ -20,7 +20,7 @@ using RunOnce.Static;
 namespace RunOnce.ViewModel;
 
 /// <summary>
-/// 代码编辑器页面的 ViewModel，承载光标位置、语言检测结果与执行状态。
+/// 代码编辑器页面的 ViewModel，承载光标位置、语言检测结果、命令行参数与执行状态。
 /// </summary>
 /// <remarks>
 /// 不变量：代码文本由 View 层的 RichEditBox 管理，本类仅持有检测与光标等派生状态。
@@ -58,6 +58,11 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// 用户手动指定的语言标识符，为 null 表示使用自动检测结果。
     /// </summary>
     private string? _manualLanguage;
+
+    /// <summary>
+    /// 用户输入的命令行参数，仅在内存中保持，不持久化存储。
+    /// </summary>
+    private string _commandLineArguments = string.Empty;
 
     /// <summary>
     /// 属性值变更时触发的事件。
@@ -182,6 +187,35 @@ public sealed class EditorViewModel : INotifyPropertyChanged
 
     #endregion
 
+    #region 命令行参数
+
+    /// <summary>
+    /// 获取或设置传递给脚本的命令行参数。
+    /// </summary>
+    /// <value>
+    /// 默认为空字符串。仅在内存中保持，不持久化存储，应用关闭即丢失。
+    /// 设置为 null 时自动转换为空字符串。
+    /// </value>
+    public string CommandLineArguments
+    {
+        get => _commandLineArguments;
+        set
+        {
+            if (SetProperty(ref _commandLineArguments, value ?? string.Empty))
+            {
+                OnPropertyChanged(nameof(HasCommandLineArguments));
+            }
+        }
+    }
+
+    /// <summary>
+    /// 获取当前是否已设置非空的命令行参数。
+    /// </summary>
+    /// <value>true 表示已设置有效参数，false 表示未设置或为空白。</value>
+    public bool HasCommandLineArguments => !string.IsNullOrWhiteSpace(_commandLineArguments);
+
+    #endregion
+
     #region 工作目录
 
     /// <summary>
@@ -260,7 +294,7 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// 执行代码脚本。
+    /// 执行代码脚本，附带可选的命令行参数。
     /// </summary>
     /// <param name="code">待执行的代码文本，不允许为 null。</param>
     /// <param name="language">目标语言标识符，不允许为 null 或空字符串。</param>
@@ -283,7 +317,9 @@ public sealed class EditorViewModel : INotifyPropertyChanged
             .Replace("\r", "\n")
             .Replace("\n", "\r\n");
 
-        Exec.Execute(normalizedCode, language, WorkingDirectory);
+        string? arguments = string.IsNullOrWhiteSpace(_commandLineArguments) ? null : _commandLineArguments;
+
+        Exec.Execute(normalizedCode, language, WorkingDirectory, arguments);
     }
 
     /// <summary>

@@ -1,10 +1,10 @@
 /*
  * 应用程序主窗口
- * 提供沉浸式标题栏、页面导航框架、窗口尺寸管理及运行按钮
+ * 提供沉浸式标题栏、页面导航框架、窗口尺寸管理、运行按钮及命令行参数按钮
  *
  * @author: WaterRun
  * @file: MainWindow.xaml.cs
- * @date: 2026-03-09
+ * @date: 2026-03-11
  */
 
 #nullable enable
@@ -24,7 +24,7 @@ using WinRT.Interop;
 namespace RunOnce;
 
 /// <summary>
-/// 应用程序主窗口类，承载页面导航、沉浸式标题栏与运行按钮。
+/// 应用程序主窗口类，承载页面导航、沉浸式标题栏、运行按钮与命令行参数按钮。
 /// </summary>
 /// <remarks>
 /// 不变量：窗口创建后必须导航到编辑器页面；标题栏区域已注册为可拖拽区域。
@@ -72,6 +72,11 @@ public sealed partial class MainWindow : Window
     /// 标识当前是否处于设置页面。
     /// </summary>
     private bool _isInSettingsPage;
+
+    /// <summary>
+    /// 命令行参数指示点的呼吸动画故事板。
+    /// </summary>
+    private Storyboard? _breathingStoryboard;
 
     /// <summary>
     /// 初始化主窗口实例。
@@ -200,6 +205,7 @@ public sealed partial class MainWindow : Window
         string appName = Text.Localize("一次运行");
         Title = appName;
         AppTitleTextBlock.Text = appName;
+        ToolTipService.SetToolTip(ArgsButton, $"{Text.Localize("命令行参数")} (Ctrl+E)");
         ToolTipService.SetToolTip(RunButton, $"{Text.Localize("运行")} (Ctrl+Enter)");
     }
 
@@ -223,6 +229,7 @@ public sealed partial class MainWindow : Window
         if (ContentFrame.Content is Editor editor)
         {
             editor.RefreshLocalizedTexts();
+            UpdateArgsDotVisibility(editor.ViewModel.HasCommandLineArguments);
         }
     }
 
@@ -247,13 +254,74 @@ public sealed partial class MainWindow : Window
     /// 更新标题栏按钮可见性。
     /// </summary>
     /// <remarks>
-    /// 编辑器页面显示运行与设置按钮，设置页面显示返回按钮。
+    /// 编辑器页面显示命令行参数、运行与设置按钮，设置页面显示返回按钮。
     /// </remarks>
     private void UpdateTitleBarButtons()
     {
         BackButton.Visibility = _isInSettingsPage ? Visibility.Visible : Visibility.Collapsed;
+        ArgsButton.Visibility = _isInSettingsPage ? Visibility.Collapsed : Visibility.Visible;
         RunButton.Visibility = _isInSettingsPage ? Visibility.Collapsed : Visibility.Visible;
         SettingsButton.Visibility = _isInSettingsPage ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    /// <summary>
+    /// 更新命令行参数指示点的可见性与呼吸动画。
+    /// </summary>
+    /// <param name="visible">true 表示显示指示点并启动动画，false 表示隐藏并停止动画。</param>
+    public void UpdateArgsDotVisibility(bool visible)
+    {
+        ArgsDot.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+
+        if (visible)
+        {
+            StartBreathingAnimation();
+        }
+        else
+        {
+            _breathingStoryboard?.Stop();
+        }
+    }
+
+    /// <summary>
+    /// 启动命令行参数指示点的呼吸动画。
+    /// </summary>
+    /// <remarks>
+    /// 使用正弦缓动在 1.0 与 0.3 之间循环切换透明度，模拟呼吸效果。
+    /// </remarks>
+    private void StartBreathingAnimation()
+    {
+        _breathingStoryboard?.Stop();
+
+        var animation = new DoubleAnimation
+        {
+            From = 1.0,
+            To = 0.3,
+            Duration = new Duration(TimeSpan.FromMilliseconds(1000)),
+            AutoReverse = true,
+            RepeatBehavior = RepeatBehavior.Forever,
+            EasingFunction = new SineEase { EasingMode = EasingMode.EaseInOut },
+        };
+
+        Storyboard.SetTarget(animation, ArgsDot);
+        Storyboard.SetTargetProperty(animation, "Opacity");
+
+        _breathingStoryboard = new Storyboard();
+        _breathingStoryboard.Children.Add(animation);
+        _breathingStoryboard.Begin();
+    }
+
+    /// <summary>
+    /// 命令行参数按钮点击事件处理程序。
+    /// </summary>
+    /// <param name="sender">事件源对象。</param>
+    /// <param name="e">路由事件参数。</param>
+    private async void ArgsButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (ContentFrame.Content is Editor editorPage)
+        {
+            await editorPage.HandleArgsRequestAsync();
+            UpdateArgsDotVisibility(editorPage.ViewModel.HasCommandLineArguments);
+        }
     }
 
     /// <summary>
