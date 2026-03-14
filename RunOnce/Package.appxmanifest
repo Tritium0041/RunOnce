@@ -11,15 +11,15 @@
   IgnorableNamespaces="uap rescap com desktop4 desktop5">
 
   <Identity
-    Name="e126083a-31bb-4921-9f37-851c15d629e7"
-    Publisher="CN=linzh"
-    Version="1.0.0.0" />
+    Name="WaterRun.69938B914C94"
+    Publisher="CN=28B58DEE-3276-4667-848D-FC06656EFB1D"
+    Version="1.0.2.0" />
 
-  <mp:PhoneIdentity PhoneProductId="e126083a-31bb-4921-9f37-851c15d629e7" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
+  <mp:PhoneIdentity PhoneProductId="f0fa32ca-7e6d-4e7d-8047-57fa88e31aa6" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
 
   <Properties>
     <DisplayName>ms-resource:AppDisplayName</DisplayName>
-    <PublisherDisplayName>linzh</PublisherDisplayName>
+    <PublisherDisplayName>WaterRun</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
