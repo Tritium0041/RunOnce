@@ -72,22 +72,34 @@
     <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
   </PropertyGroup>
 
+  <!--
+    发布性能策略说明：
+    1) Debug: 关闭优化，便于调试。
+    2) Release: 开启 R2R，保留启动性能收益。
+    3) Release: 关闭 Trim（WinUI/XAML 场景下裁剪易导致运行时缺失与启动即退）。
+  -->
   <PropertyGroup>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
+
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
-    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
+    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">False</PublishTrimmed>
+
+    <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
+    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
+    <PackageCertificateThumbprint>5FA2DE95A9FF916178ED21A3EF6027684A9A375E</PackageCertificateThumbprint>
+    <AppxPackageSigningTimestampDigestAlgorithm>SHA384</AppxPackageSigningTimestampDigestAlgorithm>
+    <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
+    <GenerateTestArtifacts>True</GenerateTestArtifacts>
+    <AppxBundle>Never</AppxBundle>
+    <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
   </PropertyGroup>
 
   <Target Name="CopyShellExtToAppx" AfterTargets="Build;_GenerateAppxPackage">
     <PropertyGroup>
       <_AppxDir>$(OutDir)AppX\</_AppxDir>
     </PropertyGroup>
-    <Copy SourceFiles="$(OutDir)ShellExt.dll"
-          DestinationFolder="$(_AppxDir)"
-          Condition="Exists('$(OutDir)ShellExt.dll') and Exists('$(_AppxDir)')"
-          SkipUnchangedFiles="true" />
-    <Message Text="ShellExt.dll → AppX\" Importance="High"
-             Condition="Exists('$(OutDir)ShellExt.dll') and Exists('$(_AppxDir)')" />
+    <Copy SourceFiles="$(OutDir)ShellExt.dll" DestinationFolder="$(_AppxDir)" Condition="Exists('$(OutDir)ShellExt.dll') and Exists('$(_AppxDir)')" SkipUnchangedFiles="true" />
+    <Message Text="ShellExt.dll → AppX\" Importance="High" Condition="Exists('$(OutDir)ShellExt.dll') and Exists('$(_AppxDir)')" />
   </Target>
 </Project>
