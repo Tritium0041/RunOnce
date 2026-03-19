@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: Static/Text.cs
- * @date: 2026-03-11
+ * @date: 2026-03-19
  */
 
 #nullable enable
@@ -44,6 +44,11 @@ public static class Text
         ["简体中文"] = "简体中文",
         ["English"] = "English",
 
+        // 编辑器性能策略
+        ["低"] = "Low",
+        ["中等"] = "Medium",
+        ["高"] = "High",
+
         // 语言选择器模式
         ["始终显示"] = "Always Show",
         ["自动隐藏"] = "Auto Hide",
@@ -70,6 +75,10 @@ public static class Text
         ["选择应用程序的主题风格"] = "Choose the application theme style",
         ["语言"] = "Language",
         ["选择应用程序的显示语言"] = "Choose the application display language",
+        ["编辑器性能"] = "Editor Performance",
+        ["调整语法高亮与语言检测的资源消耗级别"] = "Adjust the resource consumption level for syntax highlighting and language detection",
+        ["切换性能策略将清空编辑器中的所有内容，确定继续吗？"] = "Switching performance profile will clear all editor content. Continue?",
+        ["继续"] = "Continue",
 
         // 设置页面 - 代码执行设置
         ["执行前确认"] = "Confirm Before Execution",
@@ -141,7 +150,8 @@ public static class Text
         ["执行"] = "Execute",
         ["确定要执行此代码吗？"] = "Are you sure you want to execute this code?",
         ["超出输入限制"] = "Input Limit Exceeded",
-        ["一次运行面向的是\"一次性\"的脚本. 你的脚本已经长到超出这个范围了."] = "RunOnce is designed for \"one-time\" scripts. Your script has exceeded the length limit.",
+        ["你的内容超过最大长度限制, 超出部分已被截断."] = "Your content exceeds the maximum length limit. The excess has been truncated.",
+        ["\"一次运行\"面向的是\"一次性\"的脚本, 当代码达到这个长度时, 你最好需要好好看看, 而不是直接粘贴运行."] = "RunOnce is designed for \"one-time\" scripts. When your code reaches this length, you'd better review it carefully rather than just paste and run.",
 
         // 命令行参数
         ["命令行参数"] = "Command Line Arguments",

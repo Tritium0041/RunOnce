@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: Static/Config.cs
- * @date: 2026-03-14
+ * @date: 2026-03-19
  */
 
 #nullable enable
@@ -46,6 +46,21 @@ public enum DisplayLanguage
 
     /// <summary>英文。</summary>
     English,
+}
+
+/// <summary>
+/// 编辑器性能策略枚举，定义语法高亮与语言检测的资源消耗级别。
+/// </summary>
+public enum EditorPerformance
+{
+    /// <summary>低性能消耗，适合低配设备。</summary>
+    Low,
+
+    /// <summary>中等性能消耗，默认推荐。</summary>
+    Medium,
+
+    /// <summary>高性能消耗，适合高配设备与大型脚本。</summary>
+    High,
 }
 
 /// <summary>
@@ -141,7 +156,7 @@ public static class Config
 
     /// <summary>软件的当前版本号。</summary>
     /// <value>遵循语义化版本规范，格式为 Major.Minor.Patch。</value>
-    public const string Version = "1.0.2";
+    public const string Version = "1.1.0";
 
     /// <summary>软件作者名称。</summary>
     /// <value>固定值 "WaterRun"。</value>
@@ -173,6 +188,65 @@ public static class Config
 
     #endregion
 
+    #region 编辑器性能策略参数
+
+    /// <summary>
+    /// 获取当前性能策略下语言检测的初始分析字符数。
+    /// </summary>
+    /// <value>Low=768, Medium=1024, High=1536。</value>
+    public static int DetectionInitialChars => Performance switch
+    {
+        EditorPerformance.Low => 768,
+        EditorPerformance.High => 1536,
+        _ => 1024,
+    };
+
+    /// <summary>
+    /// 获取当前性能策略下语言检测每次递增的字符数。
+    /// </summary>
+    /// <value>Low=384, Medium=512, High=768。</value>
+    public static int DetectionIncrementChars => Performance switch
+    {
+        EditorPerformance.Low => 384,
+        EditorPerformance.High => 768,
+        _ => 512,
+    };
+
+    /// <summary>
+    /// 获取当前性能策略下语言检测的最大分析字符数。
+    /// </summary>
+    /// <value>Low=3072, Medium=4096, High=10240。</value>
+    public static int DetectionMaxChars => Performance switch
+    {
+        EditorPerformance.Low => 3072,
+        EditorPerformance.High => 10240,
+        _ => 4096,
+    };
+
+    /// <summary>
+    /// 获取当前性能策略下语法高亮的视窗缓冲区大小（上下各扩展的字符数）。
+    /// </summary>
+    /// <value>Low=128, Medium=256, High=512。</value>
+    public static int HighlightViewportBuffer => Performance switch
+    {
+        EditorPerformance.Low => 128,
+        EditorPerformance.High => 512,
+        _ => 256,
+    };
+
+    /// <summary>
+    /// 获取当前性能策略下编辑器的最大字符数限制。
+    /// </summary>
+    /// <value>Low=10240, Medium=20480, High=40960。</value>
+    public static int MaxCodeLength => Performance switch
+    {
+        EditorPerformance.Low => 10240,
+        EditorPerformance.High => 40960,
+        _ => 20480,
+    };
+
+    #endregion
+
     #region 设置项键名常量
 
     /// <summary>主题风格设置项的存储键名。</summary>
@@ -180,6 +254,9 @@ public static class Config
 
     /// <summary>显示语言设置项的存储键名。</summary>
     private const string KeyDisplayLanguage = "DisplayLanguage";
+
+    /// <summary>编辑器性能策略设置项的存储键名。</summary>
+    private const string KeyEditorPerformance = "EditorPerformance";
 
     /// <summary>语言执行指令配置的存储键名。</summary>
     private const string KeyLanguageCommands = "LanguageCommands";
@@ -275,6 +352,35 @@ public static class Config
             lock (_syncLock)
             {
                 _localSettings.Values[KeyDisplayLanguage] = (int)value;
+            }
+        }
+    }
+
+    /// <summary>
+    /// 获取或设置编辑器性能策略。
+    /// </summary>
+    /// <value>
+    /// EditorPerformance 枚举值，默认为 Medium（中等）。
+    /// 设置时立即持久化到本地存储。
+    /// </value>
+    public static EditorPerformance Performance
+    {
+        get
+        {
+            lock (_syncLock)
+            {
+                return _localSettings.Values.TryGetValue(KeyEditorPerformance, out object? value)
+                       && value is int intValue
+                       && Enum.IsDefined(typeof(EditorPerformance), intValue)
+                    ? (EditorPerformance)intValue
+                    : EditorPerformance.Medium;
+            }
+        }
+        set
+        {
+            lock (_syncLock)
+            {
+                _localSettings.Values[KeyEditorPerformance] = (int)value;
             }
         }
     }
@@ -396,7 +502,7 @@ public static class Config
     /// 获取或设置开始执行代码时是否自动退出应用程序。
     /// </summary>
     /// <value>
-    /// 布尔值，true 表示执行时自动退出，false 表示保持运行。默认为 true（开启）。
+    /// 布尔值，true 表示执行时自动退出，false 表示保持运行。默认为 false（关闭）。
     /// 设置时立即持久化到本地存储。
     /// </value>
     public static bool AutoExitOnExecution
@@ -405,9 +511,9 @@ public static class Config
         {
             lock (_syncLock)
             {
-                return !_localSettings.Values.TryGetValue(KeyAutoExitOnExecution, out object? value)
-                       || value is not bool boolValue
-                       || boolValue;
+                return _localSettings.Values.TryGetValue(KeyAutoExitOnExecution, out object? value)
+                       && value is bool boolValue
+                       && boolValue;
             }
         }
         set
@@ -508,7 +614,7 @@ public static class Config
     /// 获取或设置语言识别的置信度阈值。
     /// </summary>
     /// <value>
-    /// 范围 [0.0, 1.0]，默认为 0.50。
+    /// 范围 [0.0, 1.0]，默认为 0.85。
     /// 高于此值判定为可信，低于此值判定为不可信。
     /// 若存储中的值超出有效范围则回退为默认值。
     /// </value>
@@ -711,6 +817,19 @@ public static class Config
     };
 
     /// <summary>
+    /// 获取编辑器性能策略枚举值的本地化显示名称。
+    /// </summary>
+    /// <param name="performance">编辑器性能策略枚举值。</param>
+    /// <returns>本地化后的显示名称字符串。</returns>
+    public static string GetPerformanceDisplayName(EditorPerformance performance) => performance switch
+    {
+        EditorPerformance.Low => Text.Localize("低"),
+        EditorPerformance.Medium => Text.Localize("中等"),
+        EditorPerformance.High => Text.Localize("高"),
+        _ => performance.ToString(),
+    };
+
+    /// <summary>
     /// 获取语言选择器模式枚举值的本地化显示名称。
     /// </summary>
     /// <param name="mode">语言选择器模式枚举值。</param>
@@ -757,8 +876,8 @@ public static class Config
     /// 将所有用户设置项重置为默认值。
     /// </summary>
     /// <remarks>
-    /// 包括主题风格、显示语言、临时文件前缀、语言选择框模式、执行确认开关、
-    /// 置信度阈值、执行时自动退出、执行完成自动关闭终端、终端类型、命令解释器类型、
+    /// 包括主题风格、显示语言、编辑器性能策略、临时文件前缀、语言选择框模式、执行确认开关、
+    /// 置信度阈值、执行时自动退出、执行完成自动关闭终端、命令解释器类型、
     /// 脚本放置行为以及所有语言执行指令。重置后立即持久化到本地存储。
     /// </remarks>
     public static void ResetAllSettings()
@@ -767,11 +886,12 @@ public static class Config
         {
             _localSettings.Values[KeyThemeStyle] = (int)ThemeStyle.FollowSystem;
             _localSettings.Values[KeyDisplayLanguage] = (int)DisplayLanguage.FollowSystem;
+            _localSettings.Values[KeyEditorPerformance] = (int)EditorPerformance.Medium;
             _localSettings.Values[KeyTempFilePrefix] = DefaultTempFilePrefix;
             _localSettings.Values[KeyLanguageSelectorMode] = (int)LanguageSelectorMode.AutoHide;
             _localSettings.Values[KeyConfirmBeforeExecution] = false;
             _localSettings.Values[KeyConfidenceThreshold] = DefaultConfidenceThreshold;
-            _localSettings.Values[KeyAutoExitOnExecution] = true;
+            _localSettings.Values[KeyAutoExitOnExecution] = false;
             _localSettings.Values[KeyAutoCloseTerminalOnCompletion] = false;
             _localSettings.Values[KeyShellType] = (int)ShellType.PowerShellUtf8;
             _localSettings.Values[KeyScriptPlacement] = (int)ScriptPlacementBehavior.EnsureCleanup;

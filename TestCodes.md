@@ -488,6 +488,31 @@ if __name__ == "__main__":
     main()
 ```
 
+PNG转ICO:  
+
+```python
+from PIL import Image
+from pathlib import Path
+
+def png_to_ico(png_path: str = "Logo.png", ico_path: str = "Logo.ico"):
+    p = Path(png_path)
+    if not p.exists():
+        raise FileNotFoundError(f"未找到文件: {p.resolve()}")
+
+    # 打开并确保有透明通道
+    img = Image.open(p).convert("RGBA")
+
+    # 常见 ico 尺寸（Windows 常用）
+    sizes = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
+
+    # Pillow 会自动打包多尺寸到一个 ico 文件
+    img.save(ico_path, format="ICO", sizes=sizes)
+    print(f"已生成: {Path(ico_path).resolve()}")
+
+if __name__ == "__main__":
+    png_to_ico()
+```
+
 ---
 
 ## lua

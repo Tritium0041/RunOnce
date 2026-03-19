@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: ViewModel/Editor.cs
- * @date: 2026-03-11
+ * @date: 2026-03-19
  */
 
 #nullable enable
@@ -67,11 +67,6 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 属性值变更时触发的事件。
     /// </summary>
-    /// <remarks>
-    /// 触发时机：调用 <see cref="SetProperty{T}"/> 且新旧值不相等时，或显式调用 <see cref="OnPropertyChanged"/>。
-    /// 线程上下文：在调用线程触发，通常为 UI 线程。
-    /// 订阅/取消订阅：无特殊注意事项。
-    /// </remarks>
     public event PropertyChangedEventHandler? PropertyChanged;
 
     #region 光标位置属性
@@ -79,7 +74,6 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 获取当前光标所在行号（从 1 开始）。
     /// </summary>
-    /// <value>非负整数，默认为 1，只读对外。</value>
     public int CurrentLine
     {
         get => _currentLine;
@@ -89,7 +83,6 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 获取当前光标所在列号（从 1 开始）。
     /// </summary>
-    /// <value>非负整数，默认为 1，只读对外。</value>
     public int CurrentColumn
     {
         get => _currentColumn;
@@ -99,7 +92,6 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 获取本地化的光标位置显示文本。
     /// </summary>
-    /// <value>格式为 "Ln {行}, Col {列}" 或对应中文，根据当前语言设置决定。</value>
     public string PositionDisplay => $"{Text.Localize("行")} {_currentLine}, {Text.Localize("列")} {_currentColumn}";
 
     #endregion
@@ -109,10 +101,6 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 获取语言检测结果的本地化显示文本。
     /// </summary>
-    /// <value>
-    /// 手动指定时显示语言名称大写；自动检测到时显示 "LANGUAGE (xx%)"；
-    /// 未检测到时显示 "纯文本" / "Plain Text"。
-    /// </value>
     public string DetectedLanguageDisplay
     {
         get
@@ -134,33 +122,26 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 获取当前生效的语言标识符。
     /// </summary>
-    /// <value>优先返回手动指定的语言，若未手动指定则返回自动检测结果。</value>
     public string EffectiveLanguage => !string.IsNullOrEmpty(_manualLanguage) ? _manualLanguage : _detectedLanguage;
 
     /// <summary>
     /// 获取自动检测的最高置信度。
     /// </summary>
-    /// <value>范围 [0.0, 1.0]，0 表示未检测到。</value>
     public double DetectedConfidence => _detectedConfidence;
 
     /// <summary>
     /// 获取所有语言的检测结果列表。
     /// </summary>
-    /// <value>按置信度降序排列的结果列表，不为 null。</value>
     public IReadOnlyList<DetectionResult> DetectionResults => _detectionResults;
 
     /// <summary>
     /// 获取当前检测结果是否达到可信标准。
     /// </summary>
-    /// <value>true 表示置信度大于等于 <see cref="Config.ConfidenceThreshold"/>。</value>
     public bool IsConfident => _detectedConfidence >= Config.ConfidenceThreshold;
 
     /// <summary>
     /// 根据配置判断执行前是否应显示语言选择框。
     /// </summary>
-    /// <value>
-    /// AlwaysShow 模式下始终为 true；AutoHide 模式下当不可信或语言为空时为 true。
-    /// </value>
     public bool ShouldShowLanguageSelector => Config.SelectorMode switch
     {
         LanguageSelectorMode.AlwaysShow => true,
@@ -171,7 +152,6 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 获取或设置用户手动指定的语言标识符。
     /// </summary>
-    /// <value>为 null 表示使用自动检测结果；非 null 时必须是有效的语言标识符。</value>
     public string? ManualLanguage
     {
         get => _manualLanguage;
@@ -192,10 +172,6 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 获取或设置传递给脚本的命令行参数。
     /// </summary>
-    /// <value>
-    /// 默认为空字符串。仅在内存中保持，不持久化存储，应用关闭即丢失。
-    /// 设置为 null 时自动转换为空字符串。
-    /// </value>
     public string CommandLineArguments
     {
         get => _commandLineArguments;
@@ -211,7 +187,6 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 获取当前是否已设置非空的命令行参数。
     /// </summary>
-    /// <value>true 表示已设置有效参数，false 表示未设置或为空白。</value>
     public bool HasCommandLineArguments => !string.IsNullOrWhiteSpace(_commandLineArguments);
 
     #endregion
@@ -221,7 +196,6 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     /// <summary>
     /// 获取或设置脚本执行的工作目录。
     /// </summary>
-    /// <value>默认为当前进程的工作目录，不为 null。</value>
     public string WorkingDirectory { get; set; } = Environment.CurrentDirectory;
 
     #endregion
@@ -266,18 +240,62 @@ public sealed class EditorViewModel : INotifyPropertyChanged
     }
 
     /// <summary>
-    /// 对代码执行语言检测并更新所有相关属性。
+    /// 对代码执行渐进式语言检测并更新所有相关属性。
     /// </summary>
-    /// <param name="code">待检测的代码文本，允许为 null 或空。</param>
+    /// <param name="code">待检测的代码文本（已规范化为 \n 换行），允许为 null 或空。</param>
+    /// <remarks>
+    /// 渐进式策略：从前 N 个字符开始检测，若置信度超过阈值则提前停止，
+    /// 否则逐步扩大分析范围直至达到最大字符数限制。
+    /// 参数 N 由 <see cref="Config.DetectionInitialChars"/>、
+    /// <see cref="Config.DetectionIncrementChars"/> 和 <see cref="Config.DetectionMaxChars"/> 控制。
+    /// </remarks>
     public void RunDetection(string code)
     {
-        _detectionResults = LanguageDetector.Detect(code);
-        DetectionResult top = _detectionResults.FirstOrDefault();
-
-        if (top.Confidence > 0)
+        if (string.IsNullOrWhiteSpace(code))
         {
-            _detectedLanguage = top.Language;
-            _detectedConfidence = top.Confidence;
+            _detectionResults = Config.SupportedLanguages
+                .Select(lang => new DetectionResult(lang, 0.0))
+                .ToList();
+            _detectedLanguage = string.Empty;
+            _detectedConfidence = 0;
+            NotifyDetectionPropertiesChanged();
+            return;
+        }
+
+        int initialChars = Config.DetectionInitialChars;
+        int incrementChars = Config.DetectionIncrementChars;
+        int maxChars = Config.DetectionMaxChars;
+        double threshold = Config.ConfidenceThreshold;
+
+        int analyzeLength = Math.Min(initialChars, code.Length);
+        IReadOnlyList<DetectionResult> lastResults = [];
+        DetectionResult lastTop = default;
+
+        while (analyzeLength <= code.Length)
+        {
+            string snippet = code[..analyzeLength];
+            lastResults = LanguageDetector.Detect(snippet);
+            lastTop = lastResults.FirstOrDefault();
+
+            if (lastTop.Confidence >= threshold)
+            {
+                break;
+            }
+
+            if (analyzeLength >= Math.Min(maxChars, code.Length))
+            {
+                break;
+            }
+
+            analyzeLength = Math.Min(analyzeLength + incrementChars, Math.Min(maxChars, code.Length));
+        }
+
+        _detectionResults = lastResults;
+
+        if (lastTop.Confidence > 0)
+        {
+            _detectedLanguage = lastTop.Language;
+            _detectedConfidence = lastTop.Confidence;
         }
         else
         {
@@ -285,12 +303,7 @@ public sealed class EditorViewModel : INotifyPropertyChanged
             _detectedConfidence = 0;
         }
 
-        OnPropertyChanged(nameof(DetectedLanguageDisplay));
-        OnPropertyChanged(nameof(DetectionResults));
-        OnPropertyChanged(nameof(EffectiveLanguage));
-        OnPropertyChanged(nameof(IsConfident));
-        OnPropertyChanged(nameof(ShouldShowLanguageSelector));
-        OnPropertyChanged(nameof(DetectedConfidence));
+        NotifyDetectionPropertiesChanged();
     }
 
     /// <summary>
@@ -333,25 +346,30 @@ public sealed class EditorViewModel : INotifyPropertyChanged
 
     #endregion
 
-    #region INotifyPropertyChanged 实现
+    #region 私有辅助方法
 
     /// <summary>
-    /// 触发指定属性的变更通知。
+    /// 触发所有检测相关属性的变更通知。
     /// </summary>
-    /// <param name="propertyName">变更的属性名称。</param>
+    private void NotifyDetectionPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(DetectedLanguageDisplay));
+        OnPropertyChanged(nameof(DetectionResults));
+        OnPropertyChanged(nameof(EffectiveLanguage));
+        OnPropertyChanged(nameof(IsConfident));
+        OnPropertyChanged(nameof(ShouldShowLanguageSelector));
+        OnPropertyChanged(nameof(DetectedConfidence));
+    }
+
+    #endregion
+
+    #region INotifyPropertyChanged 实现
+
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
-    /// <summary>
-    /// 设置属性后备字段的值，若值发生变化则触发变更通知。
-    /// </summary>
-    /// <typeparam name="T">属性值的类型。</typeparam>
-    /// <param name="field">属性的后备字段引用。</param>
-    /// <param name="value">待设置的新值。</param>
-    /// <param name="propertyName">属性名称，由编译器自动填充。</param>
-    /// <returns>若值发生变化并已通知则返回 true，否则返回 false。</returns>
     private bool SetProperty<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
     {
         if (EqualityComparer<T>.Default.Equals(field, value))

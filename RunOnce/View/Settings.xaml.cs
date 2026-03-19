@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: View/Settings.xaml.cs
- * @date: 2026-03-11
+ * @date: 2026-03-19
  */
 
 #nullable enable
@@ -24,20 +24,15 @@ namespace RunOnce.View;
 /// <summary>
 /// 设置页面，提供应用程序所有配置项的可视化编辑界面。
 /// </summary>
-/// <remarks>
-/// 不变量：<see cref="ViewModel"/> 在构造时创建，生命周期与页面一致；所有数据绑定通过 x:Bind 建立。
-/// 线程安全：所有成员必须在 UI 线程访问。
-/// 副作用：本地化文本在页面加载及语言切换时更新；对话框通过 code-behind 展示。
-/// </remarks>
 public sealed partial class Settings : Page
 {
     /// <summary>
-    /// 设置页面的 ViewModel 实例，承载所有可绑定状态与业务逻辑。
+    /// 设置页面的 ViewModel 实例。
     /// </summary>
     public SettingsViewModel ViewModel { get; }
 
     /// <summary>
-    /// 初始化设置页面实例，创建 ViewModel 并注册事件。
+    /// 初始化设置页面实例。
     /// </summary>
     public Settings()
     {
@@ -45,15 +40,14 @@ public sealed partial class Settings : Page
         ViewModel.ThemeChanged += OnThemeChanged;
         ViewModel.LanguageChanged += OnLanguageChanged;
         ViewModel.ScriptPlacementChangeRequested += OnScriptPlacementChangeRequested;
+        ViewModel.PerformanceChangeRequested += OnPerformanceChangeRequested;
         InitializeComponent();
         Loaded += HandlePageLoaded;
     }
 
     /// <summary>
-    /// 处理页面加载完成事件，执行初始化显示逻辑。
+    /// 处理页面加载完成事件。
     /// </summary>
-    /// <param name="sender">事件源对象。</param>
-    /// <param name="e">路由事件参数。</param>
     private void HandlePageLoaded(object sender, RoutedEventArgs e)
     {
         ApplyLocalizedTexts();
@@ -62,10 +56,6 @@ public sealed partial class Settings : Page
 
     #region 事件回调
 
-    /// <summary>
-    /// 处理 ViewModel 的主题变更通知，将新主题应用到窗口。
-    /// </summary>
-    /// <param name="theme">新选中的主题风格。</param>
     private static void OnThemeChanged(ThemeStyle theme)
     {
         if (Application.Current is App app)
@@ -74,9 +64,6 @@ public sealed partial class Settings : Page
         }
     }
 
-    /// <summary>
-    /// 处理 ViewModel 的语言变更通知，刷新界面本地化内容。
-    /// </summary>
     private void OnLanguageChanged()
     {
         ViewModel.RefreshAfterLanguageChange();
@@ -84,14 +71,6 @@ public sealed partial class Settings : Page
         RefreshStoreRowVisibility();
     }
 
-    /// <summary>
-    /// 处理 ViewModel 的脚本放置行为变更请求，弹出确认对话框。
-    /// </summary>
-    /// <param name="oldIndex">变更前的选项索引。</param>
-    /// <param name="newIndex">变更后的选项索引。</param>
-    /// <remarks>
-    /// 用户确认后将变更写入 Config；用户取消后恢复 ComboBox 至原选项。
-    /// </remarks>
     private async void OnScriptPlacementChangeRequested(int oldIndex, int newIndex)
     {
         if (XamlRoot is null)
@@ -131,13 +110,76 @@ public sealed partial class Settings : Page
         }
     }
 
+    /// <summary>
+    /// 处理 ViewModel 的编辑器性能策略变更请求，弹出确认对话框。
+    /// </summary>
+    private async void OnPerformanceChangeRequested(int oldIndex, int newIndex)
+    {
+        if (XamlRoot is null)
+        {
+            ViewModel.RevertPerformanceChange(oldIndex);
+            return;
+        }
+
+        ContentDialog confirmDialog = new()
+        {
+            Title = Text.Localize("编辑器性能"),
+            Content = Text.Localize("切换性能策略将清空编辑器中的所有内容，确定继续吗？"),
+            PrimaryButtonText = Text.Localize("继续"),
+            CloseButtonText = Text.Localize("取消"),
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot,
+        };
+
+        ContentDialogResult result = await confirmDialog.ShowAsync();
+
+        if (result is ContentDialogResult.Primary)
+        {
+            ViewModel.ConfirmPerformanceChange(newIndex);
+            ClearEditorContent();
+        }
+        else
+        {
+            ViewModel.RevertPerformanceChange(oldIndex);
+        }
+    }
+
+    /// <summary>
+    /// 请求编辑器页面清空所有内容。
+    /// </summary>
+    /// <remarks>
+    /// 编辑器页面使用 NavigationCacheMode.Required，页面实例在导航后仍然存活。
+    /// 通过 MainWindow 的 ContentFrame 的导航历史查找缓存的编辑器实例。
+    /// </remarks>
+    private static void ClearEditorContent()
+    {
+        if (Application.Current is not App { MainWindow: MainWindow mw })
+        {
+            return;
+        }
+
+        // 尝试从 ContentFrame 的 BackStack 中查找缓存的 Editor 实例
+        // 由于 Editor 使用 NavigationCacheMode.Required，框架会保留其实例
+        // 我们需要通过回退导航、清空、再前进的方式，或直接访问缓存
+        // 最简单的方式：设置一个标志，在下次导航回编辑器时清空
+        // 但这里采用直接方式：Frame 的 Content 如果是 Editor 则直接清空（仅当前页面就是 Editor 时）
+        // 由于我们在 Settings 页面，Editor 不是当前 Content，所以需要用另一种方式
+
+        // 通过 NavigationCacheMode.Required 的特性，Frame 内部会缓存页面实例
+        // 我们可以在回到 Editor 时检查标志并清空
+        // 这里使用静态标志的方式
+        _pendingEditorClear = true;
+    }
+
+    /// <summary>
+    /// 标识是否有待处理的编辑器清空请求。
+    /// </summary>
+    internal static bool _pendingEditorClear;
+
     #endregion
 
     #region 本地化文本
 
-    /// <summary>
-    /// 将所有标签和描述文本更新为当前语言的本地化版本。
-    /// </summary>
     private void ApplyLocalizedTexts()
     {
         PageTitle.Text = Text.Localize("设置");
@@ -149,6 +191,8 @@ public sealed partial class Settings : Page
         ThemeDescription.Text = Text.Localize("选择应用程序的主题风格");
         LanguageLabel.Text = Text.Localize("语言");
         LanguageDescription.Text = Text.Localize("选择应用程序的显示语言");
+        PerformanceLabel.Text = Text.Localize("编辑器性能");
+        PerformanceDescription.Text = Text.Localize("调整语法高亮与语言检测的资源消耗级别");
 
         ConfirmLabel.Text = Text.Localize("执行前确认");
         ConfirmDescription.Text = Text.Localize("执行代码前显示确认对话框");
@@ -173,18 +217,12 @@ public sealed partial class Settings : Page
         ApplyNarrowAboutLocalizedTexts();
     }
 
-    /// <summary>
-    /// 更新宽屏左侧面板中的本地化文本。
-    /// </summary>
     private void ApplyWideLocalizedTexts()
     {
         WideStoreLink.Content = Text.Localize("微软商店");
         WideResetLink.Content = Text.Localize("重置所有设置");
     }
 
-    /// <summary>
-    /// 更新窄屏关于区域中的本地化文本。
-    /// </summary>
     private void ApplyNarrowAboutLocalizedTexts()
     {
         NarrowAboutSectionHeader.Text = Text.Localize("此程序");
@@ -202,9 +240,6 @@ public sealed partial class Settings : Page
 
     #region 可见性管理
 
-    /// <summary>
-    /// 根据商店 URL 是否可用刷新商店行的可见性。
-    /// </summary>
     private void RefreshStoreRowVisibility()
     {
         Visibility storeVisibility = ViewModel.HasStoreUrl ? Visibility.Visible : Visibility.Collapsed;
@@ -216,28 +251,18 @@ public sealed partial class Settings : Page
 
     #region 快捷键对话框
 
-    /// <summary>
-    /// 处理快捷键查看按钮点击事件，弹出快捷键信息对话框。
-    /// </summary>
-    /// <param name="sender">事件源对象。</param>
-    /// <param name="e">路由事件参数。</param>
     private async void ShortcutsButton_Click(object sender, RoutedEventArgs e)
     {
         ContentDialog dialog = BuildShortcutsDialog();
         await dialog.ShowAsync();
     }
 
-    /// <summary>
-    /// 构建快捷键信息对话框。
-    /// </summary>
-    /// <returns>配置完成的 <see cref="ContentDialog"/> 实例。</returns>
     private ContentDialog BuildShortcutsDialog()
     {
         StackPanel panel = new() { Spacing = 8, MinWidth = 380 };
 
         AddShortcutRow(panel, "Ctrl+Enter", Text.Localize("执行代码"));
         AddShortcutRow(panel, "Ctrl+E", Text.Localize("命令行参数"));
-        // AddShortcutRow(panel, "Ctrl+Z", Text.Localize("撤销"));
         AddShortcutRow(panel, "Ctrl+Y", Text.Localize("重做"));
         AddShortcutRow(panel, "Ctrl+A", Text.Localize("全选"));
         AddShortcutRow(panel, "Ctrl+C", Text.Localize("复制"));
@@ -255,12 +280,6 @@ public sealed partial class Settings : Page
         };
     }
 
-    /// <summary>
-    /// 向面板添加一行快捷键信息。
-    /// </summary>
-    /// <param name="panel">目标面板。</param>
-    /// <param name="shortcut">快捷键文本。</param>
-    /// <param name="description">功能描述文本。</param>
     private static void AddShortcutRow(StackPanel panel, string shortcut, string description)
     {
         Grid row = new() { Padding = new Thickness(0, 2, 0, 2) };
@@ -295,21 +314,12 @@ public sealed partial class Settings : Page
 
     #region 高级设置对话框
 
-    /// <summary>
-    /// 处理高级设置按钮点击事件，弹出高级设置对话框。
-    /// </summary>
-    /// <param name="sender">事件源对象。</param>
-    /// <param name="e">路由事件参数。</param>
     private async void AdvancedSettingsButton_Click(object sender, RoutedEventArgs e)
     {
         ContentDialog dialog = BuildAdvancedSettingsDialog();
         await dialog.ShowAsync();
     }
 
-    /// <summary>
-    /// 构建高级设置对话框。
-    /// </summary>
-    /// <returns>配置完成的 <see cref="ContentDialog"/> 实例。</returns>
     private ContentDialog BuildAdvancedSettingsDialog()
     {
         StackPanel contentPanel = new() { Spacing = 16, MinWidth = 450, Margin = new Thickness(0, 0, 8, 0) };
@@ -396,10 +406,6 @@ public sealed partial class Settings : Page
         return dialog;
     }
 
-    /// <summary>
-    /// 构建语言执行命令控件组。
-    /// </summary>
-    /// <returns>包含面板和命令文本框字典的元组。</returns>
     private static (StackPanel Panel, Dictionary<string, TextBox> TextBoxes) BuildLanguageCommandControls()
     {
         StackPanel panel = new() { Spacing = 8 };
@@ -435,13 +441,6 @@ public sealed partial class Settings : Page
         return (panel, textBoxes);
     }
 
-    /// <summary>
-    /// 构建高级设置重置链接按钮。
-    /// </summary>
-    /// <param name="prefixTextBox">临时文件前缀文本框。</param>
-    /// <param name="thresholdBox">置信度阈值数值框。</param>
-    /// <param name="commandTextBoxes">语言命令文本框字典。</param>
-    /// <returns>配置完成的 <see cref="HyperlinkButton"/> 实例。</returns>
     private HyperlinkButton BuildResetAdvancedLink(
         TextBox prefixTextBox,
         NumberBox thresholdBox,
@@ -470,11 +469,6 @@ public sealed partial class Settings : Page
         return resetLink;
     }
 
-    /// <summary>
-    /// 处理重置所有设置链接点击事件。
-    /// </summary>
-    /// <param name="sender">事件源对象。</param>
-    /// <param name="e">路由事件参数。</param>
     private async void ResetAllLink_Click(object sender, RoutedEventArgs e)
     {
         ContentDialog confirmDialog = new()
@@ -508,11 +502,6 @@ public sealed partial class Settings : Page
 
     #region 外部链接
 
-    /// <summary>
-    /// 处理 GitHub 链接点击事件。
-    /// </summary>
-    /// <param name="sender">事件源对象。</param>
-    /// <param name="e">路由事件参数。</param>
     private async void GitHubLink_Click(object sender, RoutedEventArgs e)
     {
         if (!string.IsNullOrEmpty(ViewModel.GitHubUrl))
@@ -521,11 +510,6 @@ public sealed partial class Settings : Page
         }
     }
 
-    /// <summary>
-    /// 处理微软商店链接点击事件。
-    /// </summary>
-    /// <param name="sender">事件源对象。</param>
-    /// <param name="e">路由事件参数。</param>
     private async void StoreLink_Click(object sender, RoutedEventArgs e)
     {
         if (ViewModel.HasStoreUrl)

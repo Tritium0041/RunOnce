@@ -4,7 +4,7 @@
  *
  * @author: WaterRun
  * @file: MainWindow.xaml.cs
- * @date: 2026-03-11
+ * @date: 2026-03-19
  */
 
 #nullable enable
@@ -209,6 +209,7 @@ public sealed partial class MainWindow : Window
     /// </summary>
     /// <remarks>
     /// 使用从右向左的滑动动画。编辑器页面使用 NavigationCacheMode.Required，导航时复用缓存实例。
+    /// 若存在来自设置页面的待处理编辑器清空请求（性能策略变更），则在导航完成后立即清空编辑器内容。
     /// </remarks>
     private void NavigateToEditor()
     {
@@ -223,6 +224,13 @@ public sealed partial class MainWindow : Window
 
         if (ContentFrame.Content is Editor editor)
         {
+            // 处理来自设置页面的编辑器清空请求（性能策略切换时触发）
+            if (Settings._pendingEditorClear)
+            {
+                Settings._pendingEditorClear = false;
+                editor.ClearAllContent();
+            }
+
             editor.RefreshLocalizedTexts();
             UpdateArgsDotVisibility(editor.ViewModel.HasCommandLineArguments);
         }

@@ -1,10 +1,11 @@
 ﻿/*
  * 语法高亮分析器
  * 提供代码文本的语法高亮区间分析，支持多种脚本语言的关键字、字符串、注释、数字识别
+ * 支持可选的范围参数以实现视窗局部高亮
  *
  * @author: WaterRun
  * @file: Static/Highlight.cs
- * @date: 2026-03-10
+ * @date: 2026-03-19
  */
 
 #nullable enable
@@ -70,6 +71,10 @@ public readonly record struct HighlightSpan(int Start, int Length, TokenType Typ
 ///
 /// 分析按固定优先级分四阶段执行：注释 → 字符串 → 数字 → 关键字。
 /// 前序阶段产生的区间通过字符级占用位图屏蔽后序阶段，确保高优先级 Token 不被低优先级覆盖。
+///
+/// 支持可选的视窗范围参数（rangeStart, rangeEnd）。当指定范围时，仅返回与该范围重叠的 span，
+/// 但分析仍基于完整代码文本以保证跨行注释/字符串的准确性。内部通过限制搜索范围和提前终止
+/// 来减少不必要的计算量。
 /// </remarks>
 public static class Highlight
 {
@@ -144,15 +149,10 @@ public static class Highlight
     private static readonly Dictionary<string, StringPattern> _stringPatterns = new(StringComparer.OrdinalIgnoreCase)
     {
         ["bat"] = new StringPattern(['"'], false, null),
-
         ["powershell"] = new StringPattern(['"', '\''], false, ["@\"", "\"@", "@'", "'@"]),
-
         ["python"] = new StringPattern(['"', '\''], true, ["\"\"\"", "\"\"\"", "'''", "'''"]),
-
         ["lua"] = new StringPattern(['"', '\''], true, ["[[", "]]"]),
-
         ["nim"] = new StringPattern(['"'], true, ["\"\"\""]),
-
         ["go"] = new StringPattern(['"', '\'', '`'], true, null),
     };
 
@@ -172,11 +172,14 @@ public static class Highlight
     /// </summary>
     /// <param name="code">待分析的代码字符串，允许为 null 或空字符串。</param>
     /// <param name="language">脚本语言标识符，必须是支持的语言之一，允许为 null 或空字符串。</param>
+    /// <param name="rangeStart">分析范围的起始字符索引（包含），为 null 时分析整个文本。</param>
+    /// <param name="rangeEnd">分析范围的结束字符索引（不包含），为 null 时分析整个文本。</param>
     /// <returns>
     /// 按起始位置升序排列的高亮区间列表，区间之间不重叠。
+    /// 当指定范围时，仅返回与 [rangeStart, rangeEnd) 重叠的区间。
     /// 若输入代码为空或语言不支持，返回空列表。
     /// </returns>
-    public static IReadOnlyList<HighlightSpan> Analyze(string? code, string? language)
+    public static IReadOnlyList<HighlightSpan> Analyze(string? code, string? language, int? rangeStart = null, int? rangeEnd = null)
     {
         if (string.IsNullOrEmpty(code) || string.IsNullOrWhiteSpace(language))
         {
@@ -188,13 +191,21 @@ public static class Highlight
             return [];
         }
 
+        int effectiveRangeStart = rangeStart.HasValue ? Math.Max(0, rangeStart.Value) : 0;
+        int effectiveRangeEnd = rangeEnd.HasValue ? Math.Min(code.Length, rangeEnd.Value) : code.Length;
+
+        if (effectiveRangeStart >= effectiveRangeEnd)
+        {
+            return [];
+        }
+
         List<HighlightSpan> spans = [];
         OccupancyMap occupied = new(code.Length);
 
-        AnalyzeComments(code, language, spans, occupied);
-        AnalyzeStrings(code, language, spans, occupied);
-        AnalyzeNumbers(code, spans, occupied);
-        AnalyzeKeywords(code, language, spans, occupied);
+        AnalyzeComments(code, language, spans, occupied, effectiveRangeStart, effectiveRangeEnd);
+        AnalyzeStrings(code, language, spans, occupied, effectiveRangeStart, effectiveRangeEnd);
+        AnalyzeNumbers(code, spans, occupied, effectiveRangeStart, effectiveRangeEnd);
+        AnalyzeKeywords(code, language, spans, occupied, effectiveRangeStart, effectiveRangeEnd);
 
         spans.Sort(static (a, b) =>
         {
@@ -212,11 +223,13 @@ public static class Highlight
     /// <summary>
     /// 分析代码中的注释并添加到高亮区间列表。
     /// </summary>
-    /// <param name="code">待分析的代码字符串。</param>
+    /// <param name="code">待分析的完整代码字符串。</param>
     /// <param name="language">脚本语言标识符。</param>
     /// <param name="spans">高亮区间列表，分析结果将追加到此列表。</param>
     /// <param name="occupied">字符级占用位图，用于避免与已识别 Token 重叠。</param>
-    private static void AnalyzeComments(string code, string language, List<HighlightSpan> spans, OccupancyMap occupied)
+    /// <param name="rangeStart">视窗范围起始位置。</param>
+    /// <param name="rangeEnd">视窗范围结束位置。</param>
+    private static void AnalyzeComments(string code, string language, List<HighlightSpan> spans, OccupancyMap occupied, int rangeStart, int rangeEnd)
     {
         if (!_commentPatterns.TryGetValue(language, out CommentPattern pattern))
         {
@@ -237,19 +250,31 @@ public static class Highlight
                 int endIndex = code.IndexOf(pattern.MultiLineEnd, startIndex + pattern.MultiLineStart.Length, StringComparison.Ordinal);
                 int spanEnd = endIndex >= 0 ? endIndex + pattern.MultiLineEnd.Length : code.Length;
 
-                TryAddSpan(spans, occupied, startIndex, spanEnd, TokenType.Comment);
+                if (spanEnd > rangeStart && startIndex < rangeEnd)
+                {
+                    TryAddSpan(spans, occupied, startIndex, spanEnd, TokenType.Comment);
+                }
+                else if (startIndex < rangeEnd)
+                {
+                    occupied.Mark(startIndex, spanEnd);
+                }
 
                 searchStart = spanEnd;
+
+                if (startIndex >= rangeEnd && endIndex >= 0)
+                {
+                    break;
+                }
             }
         }
 
         foreach (string prefix in pattern.SingleLinePrefixes)
         {
-            int searchStart = 0;
-            while (searchStart < code.Length)
+            int searchStart = Math.Max(0, rangeStart - 500);
+            while (searchStart < rangeEnd)
             {
                 int startIndex = code.IndexOf(prefix, searchStart, StringComparison.OrdinalIgnoreCase);
-                if (startIndex < 0)
+                if (startIndex < 0 || startIndex >= rangeEnd)
                 {
                     break;
                 }
@@ -257,7 +282,10 @@ public static class Highlight
                 int lineEnd = code.IndexOf('\n', startIndex);
                 int spanEnd = lineEnd >= 0 ? lineEnd : code.Length;
 
-                TryAddSpan(spans, occupied, startIndex, spanEnd, TokenType.Comment);
+                if (spanEnd > rangeStart)
+                {
+                    TryAddSpan(spans, occupied, startIndex, spanEnd, TokenType.Comment);
+                }
 
                 searchStart = spanEnd + 1;
             }
@@ -271,11 +299,13 @@ public static class Highlight
     /// <summary>
     /// 分析代码中的字符串字面量并添加到高亮区间列表。
     /// </summary>
-    /// <param name="code">待分析的代码字符串。</param>
+    /// <param name="code">待分析的完整代码字符串。</param>
     /// <param name="language">脚本语言标识符。</param>
     /// <param name="spans">高亮区间列表，分析结果将追加到此列表。</param>
     /// <param name="occupied">字符级占用位图，用于避免与已识别 Token 重叠。</param>
-    private static void AnalyzeStrings(string code, string language, List<HighlightSpan> spans, OccupancyMap occupied)
+    /// <param name="rangeStart">视窗范围起始位置。</param>
+    /// <param name="rangeEnd">视窗范围结束位置。</param>
+    private static void AnalyzeStrings(string code, string language, List<HighlightSpan> spans, OccupancyMap occupied, int rangeStart, int rangeEnd)
     {
         if (!_stringPatterns.TryGetValue(language, out StringPattern pattern))
         {
@@ -307,21 +337,33 @@ public static class Highlight
                     int endIndex = code.IndexOf(endDelim, startIndex + startDelim.Length, StringComparison.Ordinal);
                     int spanEnd = endIndex >= 0 ? endIndex + endDelim.Length : code.Length;
 
-                    spans.Add(new HighlightSpan(startIndex, spanEnd - startIndex, TokenType.String));
-                    occupied.Mark(startIndex, spanEnd);
+                    if (spanEnd > rangeStart && startIndex < rangeEnd)
+                    {
+                        spans.Add(new HighlightSpan(startIndex, spanEnd - startIndex, TokenType.String));
+                        occupied.Mark(startIndex, spanEnd);
+                    }
+                    else if (startIndex < rangeEnd)
+                    {
+                        occupied.Mark(startIndex, spanEnd);
+                    }
 
                     searchStart = spanEnd;
+
+                    if (startIndex >= rangeEnd && endIndex >= 0)
+                    {
+                        break;
+                    }
                 }
             }
         }
 
         foreach (char delimiter in pattern.Delimiters)
         {
-            int searchStart = 0;
-            while (searchStart < code.Length)
+            int searchStart = Math.Max(0, rangeStart - 500);
+            while (searchStart < rangeEnd)
             {
                 int startIndex = code.IndexOf(delimiter, searchStart);
-                if (startIndex < 0)
+                if (startIndex < 0 || startIndex >= rangeEnd)
                 {
                     break;
                 }
@@ -334,8 +376,11 @@ public static class Highlight
 
                 int spanEnd = FindStringEnd(code, startIndex, delimiter, pattern.SupportsEscape);
 
-                spans.Add(new HighlightSpan(startIndex, spanEnd - startIndex, TokenType.String));
-                occupied.Mark(startIndex, spanEnd);
+                if (spanEnd > rangeStart)
+                {
+                    spans.Add(new HighlightSpan(startIndex, spanEnd - startIndex, TokenType.String));
+                    occupied.Mark(startIndex, spanEnd);
+                }
 
                 searchStart = spanEnd;
             }
@@ -386,14 +431,26 @@ public static class Highlight
     /// <summary>
     /// 分析代码中的数字字面量并添加到高亮区间列表。
     /// </summary>
-    /// <param name="code">待分析的代码字符串。</param>
+    /// <param name="code">待分析的完整代码字符串。</param>
     /// <param name="spans">高亮区间列表，分析结果将追加到此列表。</param>
     /// <param name="occupied">字符级占用位图，用于避免与已识别 Token 重叠。</param>
-    private static void AnalyzeNumbers(string code, List<HighlightSpan> spans, OccupancyMap occupied)
+    /// <param name="rangeStart">视窗范围起始位置。</param>
+    /// <param name="rangeEnd">视窗范围结束位置。</param>
+    private static void AnalyzeNumbers(string code, List<HighlightSpan> spans, OccupancyMap occupied, int rangeStart, int rangeEnd)
     {
-        foreach (Match match in _numberRegex.Matches(code))
+        int searchFrom = Math.Max(0, rangeStart - 50);
+        int searchTo = Math.Min(code.Length, rangeEnd + 50);
+        string segment = code[searchFrom..searchTo];
+
+        foreach (Match match in _numberRegex.Matches(segment))
         {
-            TryAddSpan(spans, occupied, match.Index, match.Index + match.Length, TokenType.Number);
+            int absoluteStart = searchFrom + match.Index;
+            int absoluteEnd = absoluteStart + match.Length;
+
+            if (absoluteEnd > rangeStart && absoluteStart < rangeEnd)
+            {
+                TryAddSpan(spans, occupied, absoluteStart, absoluteEnd, TokenType.Number);
+            }
         }
     }
 
@@ -404,11 +461,13 @@ public static class Highlight
     /// <summary>
     /// 分析代码中的关键字并添加到高亮区间列表。
     /// </summary>
-    /// <param name="code">待分析的代码字符串。</param>
+    /// <param name="code">待分析的完整代码字符串。</param>
     /// <param name="language">脚本语言标识符。</param>
     /// <param name="spans">高亮区间列表，分析结果将追加到此列表。</param>
     /// <param name="occupied">字符级占用位图，用于避免与已识别 Token 重叠。</param>
-    private static void AnalyzeKeywords(string code, string language, List<HighlightSpan> spans, OccupancyMap occupied)
+    /// <param name="rangeStart">视窗范围起始位置。</param>
+    /// <param name="rangeEnd">视窗范围结束位置。</param>
+    private static void AnalyzeKeywords(string code, string language, List<HighlightSpan> spans, OccupancyMap occupied, int rangeStart, int rangeEnd)
     {
         if (!_keywords.TryGetValue(language, out string[]? keywords))
         {
@@ -418,13 +477,15 @@ public static class Highlight
         bool isCaseSensitive = language is not ("bat" or "powershell");
         StringComparison comparison = isCaseSensitive ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
 
+        int searchFrom = Math.Max(0, rangeStart - 50);
+
         foreach (string keyword in keywords)
         {
-            int searchStart = 0;
-            while (searchStart < code.Length)
+            int searchStart = searchFrom;
+            while (searchStart < rangeEnd)
             {
                 int index = code.IndexOf(keyword, searchStart, comparison);
-                if (index < 0)
+                if (index < 0 || index >= rangeEnd)
                 {
                     break;
                 }
@@ -432,7 +493,7 @@ public static class Highlight
                 bool isWordStart = index == 0 || !IsWordChar(code[index - 1]);
                 bool isWordEnd = index + keyword.Length >= code.Length || !IsWordChar(code[index + keyword.Length]);
 
-                if (isWordStart && isWordEnd)
+                if (isWordStart && isWordEnd && index + keyword.Length > rangeStart)
                 {
                     TryAddSpan(spans, occupied, index, index + keyword.Length, TokenType.Keyword);
                 }
@@ -481,41 +542,19 @@ public static class Highlight
     /// <summary>
     /// 字符级占用位图，以 O(区间长度) 复杂度判定任意区间是否已被高优先级 Token 占据。
     /// </summary>
-    /// <remarks>
-    /// 替代原有的 <c>HashSet&lt;(int, int)&gt;</c> + LINQ <c>Any</c> 线性扫描方案。
-    /// 原方案对每次重叠检查需遍历所有已注册区间（O(已注册区间总数)），
-    /// 位图方案仅需遍历待检查区间内的字符位（O(待检查区间长度)），
-    /// 对于典型的短 Token（关键字、数字）检查开销为常数级。
-    ///
-    /// 内部持有 <c>bool[]</c> 引用类型字段，按值传递时共享同一数组实例。
-    /// 仅供 <see cref="Analyze"/> 方法内部使用，生命周期不超过单次分析调用。
-    /// </remarks>
     private readonly struct OccupancyMap
     {
-        /// <summary>
-        /// 每个元素对应源代码中相同索引的字符，true 表示已被高优先级 Token 占据。
-        /// </summary>
         private readonly bool[] _bits;
 
-        /// <summary>
-        /// 以指定长度初始化占用位图，所有位置初始为未占用。
-        /// </summary>
-        /// <param name="length">源代码字符数，决定位图容量。</param>
         public OccupancyMap(int length)
         {
             _bits = new bool[length];
         }
 
-        /// <summary>
-        /// 判断 [start, end) 区间内是否存在已占用的字符位置。
-        /// </summary>
-        /// <param name="start">区间起始位置（包含）。</param>
-        /// <param name="end">区间结束位置（不包含）。</param>
-        /// <returns>若区间内存在任意已占用位置则返回 true，否则返回 false。</returns>
         public bool IsOccupied(int start, int end)
         {
             int clampedEnd = Math.Min(end, _bits.Length);
-            for (int i = start; i < clampedEnd; i++)
+            for (int i = Math.Max(0, start); i < clampedEnd; i++)
             {
                 if (_bits[i])
                 {
@@ -526,17 +565,13 @@ public static class Highlight
             return false;
         }
 
-        /// <summary>
-        /// 将 [start, end) 区间内的所有字符位置标记为已占用。
-        /// </summary>
-        /// <param name="start">区间起始位置（包含）。</param>
-        /// <param name="end">区间结束位置（不包含）。</param>
         public void Mark(int start, int end)
         {
+            int clampedStart = Math.Max(0, start);
             int clampedEnd = Math.Min(end, _bits.Length);
-            if (start < clampedEnd)
+            if (clampedStart < clampedEnd)
             {
-                Array.Fill(_bits, true, start, clampedEnd - start);
+                Array.Fill(_bits, true, clampedStart, clampedEnd - clampedStart);
             }
         }
     }
@@ -544,17 +579,11 @@ public static class Highlight
     /// <summary>
     /// 注释模式配置记录，定义语言的注释语法规则。
     /// </summary>
-    /// <param name="SingleLinePrefixes">单行注释前缀数组。</param>
-    /// <param name="MultiLineStart">多行注释起始分隔符，若不支持多行注释则为 null。</param>
-    /// <param name="MultiLineEnd">多行注释结束分隔符，若不支持多行注释则为 null。</param>
     private readonly record struct CommentPattern(string[] SingleLinePrefixes, string? MultiLineStart, string? MultiLineEnd);
 
     /// <summary>
     /// 字符串模式配置记录，定义语言的字符串字面量语法规则。
     /// </summary>
-    /// <param name="Delimiters">字符串分隔符字符数组。</param>
-    /// <param name="SupportsEscape">是否支持反斜杠转义序列。</param>
-    /// <param name="MultiLineDelimiters">多行字符串分隔符数组（成对出现：起始、结束），若不支持则为 null。</param>
     private readonly record struct StringPattern(char[] Delimiters, bool SupportsEscape, string[]? MultiLineDelimiters);
 
     #endregion
