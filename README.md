@@ -8,7 +8,7 @@
 
 ## 安装
 
-- [微软商店]()  
+- [微软商店](https://apps.microsoft.com/detail/9NX07BRMKGH2)  
 
 程序在安装后会自动注册Windows 11右键菜单项`在此运行代码`.  
 
