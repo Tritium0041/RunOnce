@@ -1074,12 +1074,12 @@ public sealed partial class Editor : Page
 
             // 防止对话框关闭，切换为加载状态
             args.Cancel = true;
+            cts?.Dispose();
             cts = new CancellationTokenSource();
             await RunGenerationAsync(
                 dialog, promptBox, langBox, progressRow, errorText,
                 code => { generatedCode = code; },
                 cts);
-            cts = null;
         };
 
         // 取消按钮点击时中止正在进行的请求
@@ -1094,6 +1094,7 @@ public sealed partial class Editor : Page
                 string prompt = promptBox.Text.Trim();
                 if (!string.IsNullOrWhiteSpace(prompt) && dialog.IsPrimaryButtonEnabled)
                 {
+                    cts?.Dispose();
                     cts = new CancellationTokenSource();
                     _ = RunGenerationAsync(
                         dialog, promptBox, langBox, progressRow, errorText,
@@ -1105,7 +1106,10 @@ public sealed partial class Editor : Page
 
         await dialog.ShowAsync();
 
-        // ── 将生成结果加载到编辑器 ──
+        // ── 释放 CTS 并将生成结果加载到编辑器 ──
+        cts?.Dispose();
+        cts = null;
+
         if (!string.IsNullOrEmpty(generatedCode))
         {
             LoadCodeIntoEditor(generatedCode);
@@ -1142,6 +1146,9 @@ public sealed partial class Editor : Page
     /// <summary>
     /// 执行 AI 生成的核心逻辑：调用 LlmClient，更新对话框 UI 状态，成功后关闭对话框。
     /// </summary>
+    /// <remarks>
+    /// 注意：调用方负责 cts 的释放，本方法不释放 cts。
+    /// </remarks>
     private static async Task RunGenerationAsync(
         ContentDialog dialog,
         TextBox promptBox,
@@ -1180,10 +1187,6 @@ public sealed partial class Editor : Page
             dialog.IsPrimaryButtonEnabled = true;
             promptBox.IsEnabled = true;
             langBox.IsEnabled = true;
-        }
-        finally
-        {
-            cts?.Dispose();
         }
     }
 
