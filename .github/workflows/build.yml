@@ -87,9 +87,10 @@ jobs:
           msbuild RunOnce/RunOnce.csproj `
             /p:Configuration=${{ env.CONFIGURATION }} `
             /p:Platform=${{ env.PLATFORM }} `
+            /p:GenerateAppxPackageOnBuild=True `
             /p:AppxPackageSigningEnabled=True `
             /p:GenerateTemporaryStoreCertificate=False `
-            /p:PackageCertificateKeyFile=RunOnce_TemporaryKey.pfx `
+            /p:PackageCertificateKeyFile="$env:GITHUB_WORKSPACE\RunOnce\RunOnce_TemporaryKey.pfx" `
             /p:PackageCertificatePassword="RunOnce-CI" `
             /p:AppxBundle=Never `
             /p:UapAppxPackageBuildMode=SideloadOnly `
@@ -97,12 +98,18 @@ jobs:
             /p:GenerateTestArtifacts=True `
             /m /nologo /verbosity:minimal
 
-      # ── 8. 列出构建产物（方便调试）────────────────────────────────────────────
-      - name: List package artifacts
+      # ── 8. 校验并列出构建产物（防止上传缺少 .msix 的空包）──────────────────────
+      - name: Validate and list package artifacts
         shell: pwsh
         run: |
           Write-Host "=== AppPackages ==="
-          Get-ChildItem -Recurse ${{ env.APPX_DIR }} | Select-Object -ExpandProperty FullName
+          $allFiles = Get-ChildItem -Recurse ${{ env.APPX_DIR }} -ErrorAction SilentlyContinue
+          $allFiles | Select-Object -ExpandProperty FullName
+          $msixFiles = Get-ChildItem -Recurse ${{ env.APPX_DIR }} -Filter *.msix -File -ErrorAction SilentlyContinue
+          if (-not $msixFiles) {
+            Write-Error "No .msix file found under ${{ env.APPX_DIR }}. Packaging did not produce an installer."
+            exit 1
+          }
 
       # ── 9. 写入安装说明 ───────────────────────────────────────────────────────
       - name: Write install instructions
