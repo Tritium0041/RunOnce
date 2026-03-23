@@ -84,13 +84,14 @@ jobs:
       - name: Build and Package MSIX
         shell: pwsh
         run: |
+          $pfxPath = Join-Path $env:GITHUB_WORKSPACE "RunOnce/RunOnce_TemporaryKey.pfx"
           msbuild RunOnce/RunOnce.csproj `
             /p:Configuration=${{ env.CONFIGURATION }} `
             /p:Platform=${{ env.PLATFORM }} `
             /p:GenerateAppxPackageOnBuild=True `
             /p:AppxPackageSigningEnabled=True `
             /p:GenerateTemporaryStoreCertificate=False `
-            /p:PackageCertificateKeyFile="$env:GITHUB_WORKSPACE\RunOnce\RunOnce_TemporaryKey.pfx" `
+            /p:PackageCertificateKeyFile="$pfxPath" `
             /p:PackageCertificatePassword="RunOnce-CI" `
             /p:AppxBundle=Never `
             /p:UapAppxPackageBuildMode=SideloadOnly `
@@ -102,12 +103,12 @@ jobs:
       - name: Validate and list package artifacts
         shell: pwsh
         run: |
+          $appxDir = "${{ env.APPX_DIR }}"
           Write-Host "=== AppPackages ==="
-          $allFiles = Get-ChildItem -Recurse ${{ env.APPX_DIR }} -ErrorAction SilentlyContinue
-          $allFiles | Select-Object -ExpandProperty FullName
-          $msixFiles = Get-ChildItem -Recurse ${{ env.APPX_DIR }} -Filter *.msix -File -ErrorAction SilentlyContinue
+          Get-ChildItem -Recurse $appxDir -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+          $msixFiles = Get-ChildItem -Recurse $appxDir -Filter *.msix -File -ErrorAction SilentlyContinue
           if (-not $msixFiles) {
-            Write-Error "No .msix file found under ${{ env.APPX_DIR }}. Packaging did not produce an installer."
+            Write-Error "No .msix file found under $appxDir. Packaging did not produce an installer."
             exit 1
           }
 
