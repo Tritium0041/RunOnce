@@ -215,7 +215,7 @@ public:
         // "在此用AI生成代码" / "AI Generate Script Here"
         return SHStrDupW(
             isChinese
-                ? L"\x5728\x6B64\x7528AI\x751F\x6210\x4EE3\x7801"
+                ? L"\x5728\x6B64\x7528" L"AI\x751F\x6210\x4EE3\x7801"
                 : L"AI Generate Script Here",
             ppszName);
     }
